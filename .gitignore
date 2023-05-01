@@ -1,0 +1,9 @@
+.cache
+*.testproj
+*.lock.yaml
+*.lock.yml
+*.actual
+cpp-runtime-values-db
+exercises-tests/*/test.c
+settings.json
+.DS_Store
