@@ -38,10 +38,7 @@ class AccessExpr extends ArrayExpr {
 predicate isOffsetOutOfBoundsConstant(
   AccessExpr access, AllocationCall source, int allocSize, int accessOffset
 ) {
-  source = access.getSource() and
-  allocSize = source.getFixedSize() and
-  accessOffset = access.getFixedArrayOffset() and
-  accessOffset >= allocSize
+  none()
 }
 
 from AllocationCall source, AccessExpr access, string message
