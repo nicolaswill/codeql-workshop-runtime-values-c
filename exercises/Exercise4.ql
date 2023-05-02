@@ -12,10 +12,7 @@ import semmle.code.cpp.dataflow.DataFlow
  * Gets an expression that flows to `dest` and has a constant value.
  */
 bindingset[dest]
-Expr getSourceConstantExpr(Expr dest) {
-  exists(result.getValue().toInt()) and
-  DataFlow::localExprFlow(result, dest)
-}
+Expr getSourceConstantExpr(Expr dest) { none() }
 
 /**
  * Gets the smallest of the upper bound of `e` or the largest source value (i.e. "stated value") that flows to `e`.
