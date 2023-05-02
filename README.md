@@ -67,7 +67,7 @@ The goal of this workshop is rather to demonstrate the building blocks of analyz
 ### Exercise 1
 In the first exercise we are going to start by modelling a dynamic allocation with `malloc` and an access to that allocated buffer with an array expression. The goal of this exercise is to then output the array access, buffer, array size, and buffer offset.
 
-The first test-case is a simple one, as both the allocation size and array offsets are constants.
+The [first test-case](solutions-tests/Exercise1/test.c) is a simple one, as both the allocation size and array offsets are constants.
 
 Run the query and ensure that you have three results.
 
@@ -76,6 +76,7 @@ Run the query and ensure that you have three results.
 2. Use `DataFlow::localExprFlow()` to relate the allocated buffer to the array base.
 
 ### Exercise 2
+This exercise uses the same C source code, duplicated for the test [here](solutions-tests/Exercise2/test.c).
 
 #### Task 1
 With the basic elements of the analysis in place, refactor the query into two classes: `AllocationCall` and `ArrayAccess`. The `AllocationCall` class should model a call to `malloc` and the `ArrayAccess` class should model an array access expression (`ArrayExpr`).
@@ -85,7 +86,10 @@ Next, note the missing results for the cases in `test_const_var` which involve a
 
 Use local data-flow analysis to complete the `getSourceConstantExpr` predicate. The `getFixedSize` and `getFixedArrayOffset` predicates can be completed using `getSourceConstantExpr`.
 
+
 ### Exercise 3
+This exercise has slightly more C source code [here](solutions-tests/Exercise3/test.c).
+
 Running the query from Exercise 2 against the database yields a significant number of missing or incorrect results. The reason is that although great at identifying compile-time constants and their use, data-flow analysis is not always the right tool for identifying the *range* of values an `Expr` might have, particularly when multiple potential constants might flow to an `Expr`.
 
 The CodeQL standard library several mechanisms for addressing this problem; in the remainder of this workshop we will explore two of them: `SimpleRangeAnalysis` and, later, `GlobalValueNumbering`.
@@ -97,14 +101,8 @@ Change the implementation of the `getFixedSize` and `getFixedArrayOffset` predic
 
 Experiment with different combinations of the `upperBound` and `lowerBound` predicates to see how they impact the results.
 
-For this workshop, we want to reason about the values of the largest buffer size and the largest index used to access it.
-
-<details>
-<summary>Hint</summary>
-    
-    Use `upperBound` for both predicates.
-
-</details>
+Hint:    
+Use `upperBound` for both predicates.
 
 #### Task 2
 Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offset is out-of-bounds. A template has been provided for you. For the purpose of this workshop, you may omit handling of negative indices as none exist in this workshop's test-cases. In a real-world analysis, you would need to handle negative indices.
@@ -112,6 +110,7 @@ Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offs
 You should now have five results in the test (six in the built database).
 
 ### Exercise 4
+Again, a slight longer C [source snippet](solutions-tests/Exercise4/test.c).
 
 A common issue with the `SimpleRangeAnalysis` library is handling of cases where the bounds are undeterminable at compile-time on one or more paths. For example, even though certain branches have clearly defined bounds, the range analysis library will define the `upperBound` and `lowerBound` of `val` as `INT_MIN` and `INT_MAX` respectively:
 ```cpp
@@ -125,23 +124,18 @@ To refine the bounds used for validation, start by implementing `getSourceConsta
 
 You should now have six results. However, some results annotated as `NON_COMPLIANT` in the test-case are still missing. Why is that?
 
-<details>
-<summary>Hint</summary>
-    
+Hints:
 - Which expression is passed to the `getMaxStatedValue` predicate?
 - Use .minimum to get the smaller of its qualifier and its argument (the upper bound and the source constants)
 - Use max(...) to get the maximum value of a set of values (the source constants)
 
-</details>
-
-<details>
-<summary>Answer</summary>
-    
+Answer:
 The missing results involve arithmetic offsets (right operand) from a base value (left operand). The `getMaxStatedValue` predicate should only be called on the base expression, not any `AddExpr` or `SubExpr`, as `getMaxStatedValue` relies on data-flow analysis.
 
-</details>
-
 ### Exercise 5
+The [source snippet](solutions-tests/Exercise5/test.c) is unchanged but replicated
+for the test.
+
 Since we aren't using pure range analysis via the `upperBound` and/or `lowerBound` predicates, handling `getMaxStatedValue` for `AddExpr` and `SubExpr` is necessary. 
 
 In the interest of time and deduplicating work in this workshop, only implement that check in `getFixedArrayOffset`. In a real-world scenario, it would be necessary to analyze offsets of both the buffer allocation size and array index.
@@ -165,13 +159,9 @@ CodeQL provides a library, `GlobalValueNumbering` implementing *Global Value Num
 
 In this final exercise, implement the `isOffsetOutOfBoundsGVN` predicate to relate the value numbers of the array index and the buffer allocation size. Make sure to account and array index offset in your implementation.
 
+Hint:
+Do not compute the GVN of the entire array index expression; use the base of an offset expression.
+
 Exclude duplicate results by only reporting `isOffsetOutOfBoundsGVN` for `access`/`source` pairs that are not already reported by `isOffsetOutOfBoundsConstant`.
 
 You should now see thirteen results.
-
-<details>
-<summary>Hint</summary>
-    
-Do not compute the GVN of the entire array index expression; use the base of an offset expression.
-
-</details>
