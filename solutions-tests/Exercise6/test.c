@@ -68,8 +68,8 @@ void test_const_branch2(int mode)
 
     if (alloc_size < 199)
     {
-        buf[alloc_size];     // COMPLIANT
-        buf[alloc_size + 1]; // COMPLIANT
+        buf[alloc_size];     // NON_COMPLIANT
+        buf[alloc_size + 1]; // NON_COMPLIANT
         buf[alloc_size + 2]; // NON_COMPLIANT
     }
 }

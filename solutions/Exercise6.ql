@@ -93,10 +93,7 @@ predicate isOffsetOutOfBoundsConstant(
 
 predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) {
   source = access.getSource() and
-  (
-    not exists(source.getFixedSize()) or
-    not exists(access.getFixedArrayOffset())
-  ) and
+  not isOffsetOutOfBoundsConstant(access, source, _, _) and
   exists(Expr accessOffsetBase, int accessOffsetBaseValue |
     accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
     globalValueNumber(source.getSizeExpr()) = globalValueNumber(accessOffsetBase) and

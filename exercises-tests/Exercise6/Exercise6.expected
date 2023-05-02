@@ -6,6 +6,8 @@
 | test.c:43:9:43:21 | access to array | Array access out of bounds: access to array with offset 200 on $@ with size 200 | test.c:26:17:26:22 | call to malloc | allocation |
 | test.c:65:5:65:12 | access to array | Array access out of bounds: access to array with offset 200 on $@ with size 200 | test.c:61:17:61:22 | call to malloc | allocation |
 | test.c:67:5:67:19 | access to array | Array access out of bounds: access to array with offset 200 on $@ with size 200 | test.c:61:17:61:22 | call to malloc | allocation |
+| test.c:71:9:71:23 | access to array | Array access with index that is greater or equal to the size of the $@. | test.c:61:17:61:22 | call to malloc | allocation |
+| test.c:72:9:72:27 | access to array | Array access with index that is greater or equal to the size of the $@. | test.c:61:17:61:22 | call to malloc | allocation |
 | test.c:73:9:73:27 | access to array | Array access out of bounds: access to array with offset 200 on $@ with size 200 | test.c:61:17:61:22 | call to malloc | allocation |
 | test.c:81:5:81:19 | access to array | Array access with index that is greater or equal to the size of the $@. | test.c:79:17:79:22 | call to malloc | allocation |
 | test.c:82:5:82:23 | access to array | Array access with index that is greater or equal to the size of the $@. | test.c:79:17:79:22 | call to malloc | allocation |

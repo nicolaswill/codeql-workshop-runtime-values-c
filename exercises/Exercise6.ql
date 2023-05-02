@@ -91,7 +91,11 @@ predicate isOffsetOutOfBoundsConstant(
   accessOffset >= allocSize
 }
 
-predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) { none() }
+predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) {
+  source = access.getSource() and
+  not isOffsetOutOfBoundsConstant(access, source, _, _) and
+  none()
+}
 
 from AllocationCall source, AccessExpr access, string message
 where

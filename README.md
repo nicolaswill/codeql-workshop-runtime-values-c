@@ -164,7 +164,9 @@ CodeQL provides a library, `GlobalValueNumbering` implementing *Global Value Num
 
 In this final exercise, implement the `isOffsetOutOfBoundsGVN` predicate to relate the value numbers of the array index and the buffer allocation size. Make sure to account and array index offset in your implementation.
 
-You should now see eleven results.
+Exclude duplicate results by only reporting `isOffsetOutOfBoundsGVN` for `access`/`source` pairs that are not already reported by `isOffsetOutOfBoundsConstant`.
+
+You should now see thirteen results.
 
 <details>
 <summary>Hint</summary>
