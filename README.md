@@ -97,6 +97,8 @@ Change the implementation of the `getFixedSize` and `getFixedArrayOffset` predic
 
 Experiment with different combinations of the `upperBound` and `lowerBound` predicates to see how they impact the results.
 
+For this workshop, we want to reason about the values of the largest buffer size and the largest index used to access it.
+
 <details>
 <summary>Hint</summary>
     
@@ -107,7 +109,7 @@ Experiment with different combinations of the `upperBound` and `lowerBound` pred
 #### Task 2
 Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offset is out-of-bounds. A template has been provided for you. For the purpose of this workshop, you may omit handling of negative indices as none exist in this workshop's test-cases. In a real-world analysis, you would need to handle negative indices.
 
-You should now have five results.
+You should now have five results in the test (six in the built database).
 
 ### Exercise 4
 
@@ -116,27 +118,26 @@ A common issue with the `SimpleRangeAnalysis` library is handling of cases where
 int val = test ? non_computable_int_value : 30;
 ```
 
-A similar case is present in the `test_const_branch` and `test_const_branch2` test-cases in the `Exercise4` test case. Note the issues with your Exercise 3 for these test-cases. In these cases, it is necessary to augment range analysis with data-flow and restrict the bounds to the upper or lower bound of computable constants that flow to a given expression. 
+A similar case is present in the `test_const_branch2` test-case. Note the issues with your Exercise 3 implementation for these test-cases. To handle those cases, it is necessary to augment range analysis with data-flow and restrict the bounds to the upper or lower bound of computable constants that flow to a given expression. 
 
 #### Task 1
 To refine the bounds used for validation, start by implementing `getSourceConstantExpr`. Then, implement `getMaxStatedValue` according to the [QLDoc](https://codeql.github.com/docs/ql-language-reference/ql-language-specification/#qldoc-qldoc) documentation in `Exercise4.ql`.
-
-### Task 2
-Update the `getFixedSize` and `getFixedArrayOffset` predicates to use the `getMaxStatedValue` predicate.
 
 You should now have six results. However, some results annotated as `NON_COMPLIANT` in the test-case are still missing. Why is that?
 
 <details>
 <summary>Hint</summary>
     
-    Which expression is passed to the `getMaxStatedValue` predicate?
+- Which expression is passed to the `getMaxStatedValue` predicate?
+- Use .minimum to get the smaller of its qualifier and its argument (the upper bound and the source constants)
+- Use max(...) to get the maximum value of a set of values (the source constants)
 
 </details>
 
 <details>
 <summary>Answer</summary>
     
-    The missing results involve arithmetic offsets (right operand) from a base value (left operand). The `getMaxStatedValue` predicate should only be called on the base expression, not any `AddExpr` or `SubExpr`, as `getMaxStatedValue` relies on data-flow analysis.
+The missing results involve arithmetic offsets (right operand) from a base value (left operand). The `getMaxStatedValue` predicate should only be called on the base expression, not any `AddExpr` or `SubExpr`, as `getMaxStatedValue` relies on data-flow analysis.
 
 </details>
 
@@ -171,6 +172,6 @@ You should now see thirteen results.
 <details>
 <summary>Hint</summary>
     
-    Do not compute the GVN of the entire array index expression but rather the base of an offset expression.
+Do not compute the GVN of the entire array index expression; use the base of an offset expression.
 
 </details>
