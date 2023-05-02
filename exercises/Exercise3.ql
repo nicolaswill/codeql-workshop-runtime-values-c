@@ -1,7 +1,8 @@
 /**
- * @name cpp/array-access-out-of-bounds
+ * @id cpp/array-access-out-of-bounds
  * @description Access of an array with an index that is greater or equal to the element num.
  * @kind problem
+ * @problem.severity error
  */
 
 import cpp

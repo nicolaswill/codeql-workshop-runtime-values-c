@@ -1,7 +1,8 @@
 /**
- * @name cpp/array-access-out-of-bounds
+ * @id cpp/array-access-out-of-bounds
  * @description Access of an array with an index that is greater or equal to the element num.
  * @kind problem
+ * @problem.severity error
  */
 
 import cpp
@@ -91,7 +92,11 @@ predicate isOffsetOutOfBoundsConstant(
   accessOffset >= allocSize
 }
 
-predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) { none() }
+predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) {
+  source = access.getSource() and
+  not isOffsetOutOfBoundsConstant(access, source, _, _) and
+  none()
+}
 
 from AllocationCall source, AccessExpr access, string message
 where

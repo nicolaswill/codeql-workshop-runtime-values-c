@@ -1,7 +1,8 @@
 /**
- * @name cpp/array-access-out-of-bounds
+ * @id cpp/array-access-out-of-bounds
  * @description Access of an array with an index that is greater or equal to the element num.
  * @kind problem
+ * @problem.severity error
  */
 
 import cpp
@@ -93,10 +94,7 @@ predicate isOffsetOutOfBoundsConstant(
 
 predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) {
   source = access.getSource() and
-  (
-    not exists(source.getFixedSize()) or
-    not exists(access.getFixedArrayOffset())
-  ) and
+  not isOffsetOutOfBoundsConstant(access, source, _, _) and
   exists(Expr accessOffsetBase, int accessOffsetBaseValue |
     accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
     globalValueNumber(source.getSizeExpr()) = globalValueNumber(accessOffsetBase) and

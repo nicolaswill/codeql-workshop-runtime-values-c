@@ -101,43 +101,36 @@ Change the implementation of the `getFixedSize` and `getFixedArrayOffset` predic
 
 Experiment with different combinations of the `upperBound` and `lowerBound` predicates to see how they impact the results.
 
-
-Hint:
-    
+Hint:    
 Use `upperBound` for both predicates.
 
-
 #### Task 2
-Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offset is out-of-bounds. A template has been provided for you.
+Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offset is out-of-bounds. A template has been provided for you. For the purpose of this workshop, you may omit handling of negative indices as none exist in this workshop's test-cases. In a real-world analysis, you would need to handle negative indices.
 
-You should now have five results.
+You should now have five results in the test (six in the built database).
 
 ### Exercise 4
 Again, a slight longer C [source snippet](solutions-tests/Exercise4/test.c).
 
-A common issue with the `SimpleRangeAnalysis` library is handling of cases where the bounds are undeterminable at compile-time on one or more paths. For example, even though certain paths have clearly defined bounds, the range analysis library will define the `upperBound` and `lowerBound` of `val` as `INT_MIN` and `INT_MAX` respectively:
+A common issue with the `SimpleRangeAnalysis` library is handling of cases where the bounds are undeterminable at compile-time on one or more paths. For example, even though certain branches have clearly defined bounds, the range analysis library will define the `upperBound` and `lowerBound` of `val` as `INT_MIN` and `INT_MAX` respectively:
 ```cpp
-int val = rand() ? rand() : 30;
+int val = test ? non_computable_int_value : 30;
 ```
 
-A similar case is present in the `test_const_branch` and `test_const_branch2` test-cases in the `Exercise3` test case. Note the issues with your Exercise 3 for these test-cases. In these cases, it is necessary to augment range analysis with data-flow and restrict the bounds to the upper or lower bound of computable constants that flow to a given expression. 
+A similar case is present in the `test_const_branch2` test-case. Note the issues with your Exercise 3 implementation for these test-cases. To handle those cases, it is necessary to augment range analysis with data-flow and restrict the bounds to the upper or lower bound of computable constants that flow to a given expression. 
 
 #### Task 1
 To refine the bounds used for validation, start by implementing `getSourceConstantExpr`. Then, implement `getMaxStatedValue` according to the [QLDoc](https://codeql.github.com/docs/ql-language-reference/ql-language-specification/#qldoc-qldoc) documentation in `Exercise4.ql`.
 
-### Task 2
-Update the `getFixedSize` and `getFixedArrayOffset` predicates to use the `getMaxStatedValue` predicate.
-
 You should now have six results. However, some results annotated as `NON_COMPLIANT` in the test-case are still missing. Why is that?
 
-Hint:
-    
-Which expression is passed to the `getMaxStatedValue` predicate?
+Hints:
+- Which expression is passed to the `getMaxStatedValue` predicate?
+- Use .minimum to get the smaller of its qualifier and its argument (the upper bound and the source constants)
+- Use max(...) to get the maximum value of a set of values (the source constants)
 
 Answer:
-    
 The missing results involve arithmetic offsets (right operand) from a base value (left operand). The `getMaxStatedValue` predicate should only be called on the base expression, not any `AddExpr` or `SubExpr`, as `getMaxStatedValue` relies on data-flow analysis.
-
 
 ### Exercise 5
 The [source snippet](solutions-tests/Exercise5/test.c) is unchanged but replicated
@@ -154,7 +147,21 @@ Complete the following predicates:
 You should now see nine results.
 
 ### Exercise 6
-TODO: intro to GVN write-up here
-TODO: finish below instructions
+Up until now, we have identified computable expressions — that is, expressions with a value we can determine the bounds of — and related those computable expressions to find array indices greater than or equal to a linked allocation size. But in patterns such as the following, no such bound computation or even data-flow analysis is possible:
+```cpp
+void string_oob(char* str) {
+    char *buf = (char *)malloc(strlen(str) + 1);
+    buf[strlen(str) + 1] = 0;
+}
+```
 
-The final exercise is to implement the `isOffsetOutOfBoundsGVN` predicate to [...]
+CodeQL provides a library, `GlobalValueNumbering` implementing *Global Value Numbering*, which is an SSA-based analysis that assigns a unique *value number* to each computation of a value. Each expression has a value number, but multiple expressions can have the same value number. Multiple expressions with the same value number are equivalent. To get the value number for an `Expr` `e`, use `globalValueNumber(e)`. 
+
+In this final exercise, implement the `isOffsetOutOfBoundsGVN` predicate to relate the value numbers of the array index and the buffer allocation size. Make sure to account and array index offset in your implementation.
+
+Hint:
+Do not compute the GVN of the entire array index expression; use the base of an offset expression.
+
+Exclude duplicate results by only reporting `isOffsetOutOfBoundsGVN` for `access`/`source` pairs that are not already reported by `isOffsetOutOfBoundsConstant`.
+
+You should now see thirteen results.
