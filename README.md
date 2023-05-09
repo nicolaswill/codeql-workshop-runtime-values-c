@@ -206,6 +206,8 @@ Exclude duplicate results by only reporting `isOffsetOutOfBoundsGVN` for `access
 
 You should now see thirteen results.
 
+Some notes:
+
 Global value numbering only knows that runtime values are equal; they are not
 comparable (`<, >, <=` etc.), and the *actual* value is not known.
 Reference: https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/
