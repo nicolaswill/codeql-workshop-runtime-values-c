@@ -2,9 +2,9 @@
 :PROPERTIES:
 :CUSTOM_ID: codeql-workshop--using-data-flow-and-range-analysis-to-find-out-of-bounds-accesses
 :END:
-* Acknowledgements
+* Acknowledgments
   :PROPERTIES:
-  :CUSTOM_ID: acknowledgements
+  :CUSTOM_ID: acknowledgments
   :END:
 
 This session-based workshop is based on the exercise/unit-test-based material at
@@ -130,33 +130,30 @@ Standards repository]].
   :PROPERTIES:
   :CUSTOM_ID: sessionworkshop-notes
   :END:
-Unlike the the [[#org3b74422][exercises]] which use the /collection/ of
-test problems in =exercises-test=, a workshop follows
-=session/session.ql= and uses a /single/ database built from a single,
-larger segment of code.
 
-* Exercises
-  :PROPERTIES:
-  :CUSTOM_ID: exercises
-  :END:
-These exercises use the collection of test problems in =exercises-test=.
+Unlike the the [[../README.md#org3b74422][exercises]] which use the /collection/ of test problems in
+=exercises-test=, this workshop is a sequential session as one following the
+actual process of writing CodeQL: use a /single/ database built from a single,
+larger segment of code.  For this workshop, the larger segment is still simplified
+skeleton code, not a full source code repository.
 
-** Exercise 1
+** Step 1
    :PROPERTIES:
    :CUSTOM_ID: exercise-1
    :END:
-In the first exercise we are going to start by modelling a dynamic
-allocation with =malloc= and an access to that allocated buffer with an
-array expression. The goal of this exercise is to then output the array
-access, buffer, array size, and buffer offset.
+   In the first step we are going to start by
+   1. modelling a dynamic allocation with =malloc= and
+   2. an access to that allocated buffer with an
+   3. array expression.
 
-The [[file:solutions-tests/Exercise1/test.c][first test-case]] is a
-simple one, as both the allocation size and array offsets are constants.
+   The goal of this exercise is to then output the array access, buffer, array size,
+   and buffer offset.
 
-For this exercise, connect the allocation(s), the array accesses, and
-the sizes in each.
-
-Run the query and ensure that you have three results.
+   The focus here is on
+   : void test_const(void)
+   and
+   : void test_const_var(void)
+   in [[file:~/local/codeql-workshop-runtime-values-c/session-db/DB/db.c][db.c]].
 
 *** Hints
     :PROPERTIES:
@@ -164,252 +161,702 @@ Run the query and ensure that you have three results.
     :END:
 1. =Expr::getValue()::toInt()= can be used to get the integer value of a
    constant expression.
-2. Use =DataFlow::localExprFlow()= to relate the allocated buffer to the
-   array base.
 
-** Exercise 2
+*** Solution
+   #+BEGIN_SRC java
+// Step 1
+// void test_const(void)
+// void test_const_var(void)
+from AllocationExpr buffer, ArrayExpr access, int bufferSize, int accessIdx, Expr allocSizeExpr
+where
+  // malloc (100)
+  // ^^^^^^  AllocationExpr buffer
+  //
+  // buf[...]
+  // ^^^  ArrayExpr access
+  //
+  // buf[...]
+  //     ^^^  int accessIdx
+  //
+  accessIdx = access.getArrayOffset().getValue().toInt() and
+  //
+  // malloc (100)
+  //         ^^^ allocSizeExpr / bufferSize
+  //
+  allocSizeExpr = buffer.(Call).getArgument(0) and
+  bufferSize = allocSizeExpr.getValue().toInt()
+select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
+   #+END_SRC
+
+This produces 12 results, with some cross-function pairs.
+
+** Step 2
+The previous query fails to connect the =malloc= calls with the array accesses,
+and =mallocs= from one function are paired with accesses in another.
+
+To address these, take the query from the previous exercise and
+1. connect the allocation(s) with the
+2. array accesses
+
+*** Hints
+    :PROPERTIES:
+    :CUSTOM_ID: hints
+    :END:
+1. Use =DataFlow::localExprFlow()= to relate the allocated buffer to the
+   array base.
+2. The the array base is the =buf= part of =buf[0]=.  Use the 
+   =Expr.getArrayBase()= predicate.
+
+*** Solution
+
+    #+BEGIN_SRC java
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+
+      // Step 2
+      // void test_const(void)
+      // void test_const_var(void)
+      from AllocationExpr buffer, ArrayExpr access, int bufferSize, int accessIdx, Expr allocSizeExpr
+      where
+        // malloc (100)
+        // ^^^^^^  AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        //
+        // buf[...]
+        //     ^^^  int accessIdx
+        //
+        accessIdx = access.getArrayOffset().getValue().toInt() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        allocSizeExpr = buffer.(Call).getArgument(0) and
+        bufferSize = allocSizeExpr.getValue().toInt() and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
+    #+END_SRC
+
+*** Results
+    There are now 3 results.  These are from only one function, the one using constants.
+
+** Step 3
    :PROPERTIES:
    :CUSTOM_ID: exercise-2
    :END:
-This exercise uses the same C source code with an addition: a constant
-array size propagated [[file:solutions-tests/Exercise2/test.c][via a
-variable]].
 
+   The previous results need to be extended to the case
+   #+BEGIN_SRC c++
+     void test_const_var(void)
+     {
+         unsigned long size = 100;
+         char *buf = malloc(size);
+         buf[0];        // COMPLIANT
+         ...
+     }
+   #+END_SRC
+
+   Here, the =malloc= argument is a variable with known value.  
+
+   We include this result by removing the size-retrieval from the prior query.
+
+*** Solution
+
+    #+BEGIN_SRC java
+
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+
+      // Step 3
+      // void test_const_var(void)
+      from AllocationExpr buffer, ArrayExpr access, int accessIdx, Expr allocSizeExpr
+      where
+        // malloc (100)
+        // ^^^^^^  AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        //
+        // buf[...]
+        //     ^^^  int accessIdx
+        //
+        accessIdx = access.getArrayOffset().getValue().toInt() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        allocSizeExpr = buffer.(Call).getArgument(0) and
+        // bufferSize = allocSizeExpr.getValue().toInt() and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, access, accessIdx, access.getArrayOffset() 
+    #+END_SRC
+
+*** Results
+    Now, we get 12 results, including some from other test cases.
+
+** Step 4
+   We are looking for out-of-bounds accesses, so we to need to include the
+   bounds.  But in a different way.
+
+   Note the results for the cases in =test_const_var= which involve a variable
+   access rather than a constant. The next goal is to handle the case where the
+   allocation size or array index are variables (with constant values) rather than
+   integer constants.
+
+   We have an expression =size= that flows into the =malloc()= call.
+   
+*** Solution
+
+    #+BEGIN_SRC java
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+
+      // Step 4
+      from AllocationExpr buffer, ArrayExpr access, int accessIdx, Expr allocSizeExpr, int bufferSize, Expr bse
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        //
+        // buf[...]
+        //     ^^^  int accessIdx
+        //
+        accessIdx = access.getArrayOffset().getValue().toInt() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        allocSizeExpr = buffer.(Call).getArgument(0) and
+        // bufferSize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        exists(Expr bufferSizeExpr |
+          DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+          bufferSizeExpr.getValue().toInt() = bufferSize
+          and bse = bufferSizeExpr
+        ) and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bse
+    #+END_SRC
+
+*** Results
+    Now, we get 15 results, limited to statically determined values.
+
+   XX: to implement predicates
+   =getSourceConstantExpr=, =getFixedSize=, and =getFixedArrayOffset= 
+   Use local data-flow analysis to complete the =getSourceConstantExpr=
+   predicate. The =getFixedSize= and =getFixedArrayOffset= predicates can
+   be completed using =getSourceConstantExpr=.
+    
 XX:
+   1. start with query.
+      =elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
+   2. convert to predicate.
+   3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
+      is different from those below.
 
-1. start with query.
-   =elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
-2. convert to predicate.
-3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
-   is different from those below.
 
-*** Task 1
-    :PROPERTIES:
-    :CUSTOM_ID: task-1
-    :END:
-With the basic elements of the analysis in place, refactor the query
-into two classes: =AllocationCall= and =ArrayAccess=. The
-=AllocationCall= class should model a call to =malloc= and the
-=ArrayAccess= class should model an array access expression
-(=ArrayExpr=).
+** Step 5 -- SimpleRangeAnalysis
+   Running the query from Step 2 against the database yields a
+   significant number of missing or incorrect results. The reason is that
+   although great at identifying compile-time constants and their use,
+   data-flow analysis is not always the right tool for identifying the
+   /range/ of values an =Expr= might have, particularly when multiple
+   potential constants might flow to an =Expr=.
 
-*** Task 2
-    :PROPERTIES:
-    :CUSTOM_ID: task-2
-    :END:
-Next, note the missing results for the cases in =test_const_var= which
-involve a variable access rather than a constant. The goal of this task
-is to implement the =getSourceConstantExpr=, =getFixedSize=, and
-=getFixedArrayOffset= predicates to handle the case where the allocation
-size or array index are variables rather than integer constants.
+   The range analysis already handles conditional branches; we don't
+   have to use guards on data flow -- don't implement your own interpreter
+   if you can use the library.
 
-Use local data-flow analysis to complete the =getSourceConstantExpr=
-predicate. The =getFixedSize= and =getFixedArrayOffset= predicates can
-be completed using =getSourceConstantExpr=.
+   The CodeQL standard library has several mechanisms for addressing this
+   problem; in the remainder of this workshop we will explore two of them:
+   =SimpleRangeAnalysis= and, later, =GlobalValueNumbering=.
 
-** Exercise 3
-   :PROPERTIES:
-   :CUSTOM_ID: exercise-3
-   :END:
-This exercise has slightly more C source code
-[[file:solutions-tests/Exercise3/test.c][here]].
+   Although not in the scope of this workshop, a standard use-case for
+   range analysis is reliably identifying integer overflow and validating
+   integer overflow checks.
 
-XX: test_const_branch buf[100] with size == 100
+   First, simplify the =from...where...select=:
+   1. Remove unnecessary =exists= clauses.
+   2. Use =DataFlow::localExprFlow= for the buffer and allocation sizes, not
+      =getValue().toInt()= 
 
-Running the query from Exercise 2 against the database yields a
-significant number of missing or incorrect results. The reason is that
-although great at identifying compile-time constants and their use,
-data-flow analysis is not always the right tool for identifying the
-/range/ of values an =Expr= might have, particularly when multiple
-potential constants might flow to an =Expr=.
+   Then, add the use of the =SimpleRangeAnalysis= library.  Specifically, the
+   relevant library predicates are =upperBound= and =lowerBound=, to be used with
+   the buffer access argument.  Experiment and decide which to use for this
+   exercise (=upperBound=, =lowerBound=, or both).
 
-XX: explain using source code.
+   This requires the import
+   : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-XX: autogen accessor predicates?
+*** Solution
+    #+BEGIN_SRC java
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-The CodeQL standard library several mechanisms for addressing this
-problem; in the remainder of this workshop we will explore two of them:
-=SimpleRangeAnalysis= and, later, =GlobalValueNumbering=.
+      // Step 5
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
+        int allocsize, Expr bufferSizeExpr
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        //
+        // buf[...]
+        //     ^^^  int accessIdx
+        //
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        // Not really:
+        //   allocSizeExpr = buffer.(Call).getArgument(0) and
+        //
+        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
+        allocsize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+        bufferSizeExpr.getValue().toInt() = bufferSize and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, accessIdx, allocsize, allocSizeExpr
+    #+END_SRC
 
-Although not in the scope of this workshop, a standard use-case for
-range analysis is reliably identifying integer overflow and validating
-integer overflow checks.
+*** Results
+    Now, we get 48 results.
 
-*** Task 1
-    :PROPERTIES:
-    :CUSTOM_ID: task-1-1
-    :END:
-Change the implementation of the =getFixedSize= and
-=getFixedArrayOffset= predicates to use the =SimpleRangeAnalysis=
-library rather than data-flow. Specifically, the relevant predicates are
-=upperBound= and =lowerBound=. Decide which to use for this exercise
-(=upperBound=, =lowerBound=, or both).
+** Step 6
+   To finally determine (some) out-of-bounds accesses, we have to convert
+   allocation units (usually in bytes) to size units.  Then we are finally in a
+   position to compare buffer allocation size to the access index to find
+   out-of-bounds accesses -- at least for expressions with known values.
+   
+   Add these to the query:
+   1. Convert allocation units to size units.
+   2. Convert access units to the same size units.
 
-Experiment with different combinations of the =upperBound= and
-=lowerBound= predicates to see how they impact the results.
+   Hints:
+   1. We need the size of the array element.  Use
+      =access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType()=
+      to see the type and 
+      =access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
+      to get its size.
 
-Hint:
+   2. Note from the docs:
+      /The malloc() function allocates size bytes of memory and returns a pointer
+      to the allocated memory./ 
+      So =size = 1=
 
-Use =upperBound= for both predicates.
+   3. Note that
+      =allocSizeExpr.getUnspecifiedType() as allocBaseType=
+      is wrong here.
 
-*** Task 2
-    :PROPERTIES:
-    :CUSTOM_ID: task-2-1
-    :END:
-Implement the =isOffsetOutOfBoundsConstant= predicate to check if the
-array offset is out-of-bounds. A template has been provided for you.
+   4. These test cases all use type =char=.  What would happen for =int= or
+      =double=? 
 
-You should now have five results.
+*** Solution
+    #+BEGIN_SRC java
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-** Exercise 4
-   :PROPERTIES:
-   :CUSTOM_ID: exercise-4
-   :END:
-XX: The range analysis already handles conditional branches; we don't
-have to use guards on data flow -- don't implement your own interpreter
-if you can use the library.
+      // Step 6
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
+        int allocsize, Expr bufferSizeExpr
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        // buf[...]
+        //     ^^^  int accessIdx
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        // Not really:
+        //   allocSizeExpr = buffer.(Call).getArgument(0) and
+        //
+        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
+        allocsize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+        bufferSizeExpr.getValue().toInt() = bufferSize and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, accessIdx, allocsize, allocSizeExpr,  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType() as arrayBaseType, access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() as arrayTypeSize,  1 as allocBaseSize
+    #+END_SRC
 
-Again, a slight longer C [[file:solutions-tests/Exercise4/test.c][source
-snippet]].
+*** Results
+    48 results in the table
 
-A common issue with the =SimpleRangeAnalysis= library is handling of
-cases where the bounds are undeterminable at compile-time on one or more
-paths. For example, even though certain paths have clearly defined
-bounds, the range analysis library will define the =upperBound= and
-=lowerBound= of =val= as =INT_MIN= and =INT_MAX= respectively:
+    | 1 | call to malloc | 200 | access to array | 0 | 0 | 200 | 200 | char | 1 | 1 |
 
-#+begin_src cpp
-int val = rand() ? rand() : 30;
-#+end_src
+** Step 7
+   1. Clean up the query.
+   2. Add expressions for =allocatedUnits= (from the malloc) and a
+      =maxAccessedIndex= (from array accesses)
+   3. Compare buffer allocation size to the access index.
 
-A similar case is present in the =test_const_branch= and
-=test_const_branch2= test-cases in the =Exercise3= test case. Note the
-issues with your Exercise 3 for these test-cases. In these cases, it is
-necessary to augment range analysis with data-flow and restrict the
-bounds to the upper or lower bound of computable constants that flow to
-a given expression.
+*** Solution:
+    #+BEGIN_SRC java
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-*** Task 1
-    :PROPERTIES:
-    :CUSTOM_ID: task-1-2
-    :END:
-To refine the bounds used for validation, start by implementing
-=getSourceConstantExpr=. Then, implement =getMaxStatedValue= according
-to the
-[[https://codeql.github.com/docs/ql-language-reference/ql-language-specification/#qldoc-qldoc][QLDoc]]
-documentation in =Exercise4.ql=.
+      // Step 7
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
+        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        // buf[...]
+        //     ^^^  int accessIdx
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        // Not really:
+        //   allocSizeExpr = buffer.(Call).getArgument(0) and
+        //
+        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
+        allocsize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+        bufferSizeExpr.getValue().toInt() = bufferSize and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        arrayTypeSize =  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() 
+        and
+        1 = allocBaseSize
+        and
+        DataFlow::localExprFlow(buffer, access.getArrayBase())
+      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, allocSizeExpr,   allocBaseSize * allocsize as allocatedUnits, arrayTypeSize * accessMax as maxAccessedIndex
+    #+END_SRC
 
-** Task 2
-   :PROPERTIES:
-   :CUSTOM_ID: task-2-2
-   :END:
-Update the =getFixedSize= and =getFixedArrayOffset= predicates to use
-the =getMaxStatedValue= predicate.
+*** Results
+    48 results in the much cleaner table
 
-You should now have six results. However, some results annotated as
-=NON_COMPLIANT= in the test-case are still missing. Why is that?
+    | no. | buffer         | bufferSizeExpr | access          | accessMax | allocSizeExpr | allocatedUnits | maxAccessedIndex |   |
+    |  1 | call to malloc |            200 | access to array |         0 |           200 |            200 |                0 |   |
 
-Hint:
+** Step 8
+   1. Clean up the query.
+   2. Compare buffer allocation size to the access index.
+   3. Report only the questionable entries.
+   4. Use
+      #+BEGIN_SRC java
+        /**
+         ,* @kind problem
+         ,*/
+      #+END_SRC
+      to get nicer reporting.
 
-Which expression is passed to the =getMaxStatedValue= predicate?
+*** Solution:
+    #+BEGIN_SRC java
+      /**
+       ,* @kind problem
+       ,*/
 
-Answer:
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-The missing results involve arithmetic offsets (right operand) from a
-base value (left operand). The =getMaxStatedValue= predicate should only
-be called on the base expression, not any =AddExpr= or =SubExpr=, as
-=getMaxStatedValue= relies on data-flow analysis.
+      // Step 8
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
+        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize, int accessMax,
+        int allocatedUnits, int maxAccessedIndex
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        // buf[...]
+        //     ^^^  int accessIdx
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        // Not really:
+        //   allocSizeExpr = buffer.(Call).getArgument(0) and
+        //
+        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
+        allocsize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+        bufferSizeExpr.getValue().toInt() = bufferSize and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        arrayTypeSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() and
+        1 = allocBaseSize and
+        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+        upperBound(accessIdx) = accessMax and
+        allocBaseSize * allocsize = allocatedUnits and
+        arrayTypeSize * accessMax =  maxAccessedIndex and
+        // only consider out-of-bounds
+        maxAccessedIndex >= allocatedUnits
+      select access, "Array access at or beyond size; have "+allocatedUnits + " units, access at "+ maxAccessedIndex
+    #+END_SRC
 
-** Exercise 5
-   :PROPERTIES:
-   :CUSTOM_ID: exercise-5
-   :END:
-The [[file:solutions-tests/Exercise5/test.c][source snippet]] is
-unchanged but replicated for the test.
+*** Results
+    14 results in the much cleaner table
 
-XX: the cases
-=39:14:    if (size < 199) 69:20:    if (alloc_size < 199)= need to be
-exempted.
+    | Array access at or beyond size; have 200 units, access at 200 | db.c:67:5 |
+    
+** Interim notes
+   A common issue with the =SimpleRangeAnalysis= library is handling of
+   cases where the bounds are undeterminable at compile-time on one or more
+   paths. For example, even though certain paths have clearly defined
+   bounds, the range analysis library will define the =upperBound= and
+   =lowerBound= of =val= as =INT_MIN= and =INT_MAX= respectively:
 
-XX: examine the index expression value, and compare it to the
-upper/lower bounds. /Then/ expand the query.
+   #+begin_src cpp
+     int val = rand() ? rand() : 30;
+   #+end_src
 
-Since we aren't using pure range analysis via the =upperBound= and/or
-=lowerBound= predicates, handling =getMaxStatedValue= for =AddExpr= and
-=SubExpr= is necessary.
+   A similar case is present in the =test_const_branch= and =test_const_branch2=
+   test-cases.  In these cases, it is necessary to augment range analysis with
+   data-flow and restrict the bounds to the upper or lower bound of computable
+   constants that flow to a given expression.  Another approach is global value
+   numbering, used next.
 
-In the interest of time and deduplicating work in this workshop, only
-implement that check in =getFixedArrayOffset=. In a real-world scenario,
-it would be necessary to analyze offsets of both the buffer allocation
-size and array index.
+** Step 9 -- GlobalValueNumbering
+   Range analyis won't bound =sz * x * y=, so switch to global value
+   numbering.
+   This is the case in the last test case, 
+   #+begin_example
+   void test_gvn_var(unsigned long x, unsigned long y, unsigned long sz)
+   {
+       char *buf = malloc(sz * x * y);
+       buf[sz * x * y - 1]; // COMPLIANT
+       buf[sz * x * y];     // NON_COMPLIANT
+       buf[sz * x * y + 1]; // NON_COMPLIANT
+   }
+   #+end_example
 
-Complete the following predicates:
+   Reference:
+   [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/]] 
 
-- =getExprOffsetValue=
-- =getFixedArrayOffset=
+   Global value numbering only knows that runtime values are equal; they
+   are not comparable (=<, >, <== etc.), and the /actual/ value is not
+   known.
 
-You should now see nine results.
+   XX: global value numbering finds expressions with the same known value,
+   independent of structure.
 
-** Exercise 6
-   :PROPERTIES:
-   :CUSTOM_ID: exercise-6
-   :END:
-TODO: intro to GVN write-up here TODO: finish below instructions
+   So, we look for and use /relative/ values between allocation and use. To do
+   this, use GVN.
 
-XX: reference:
-[[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/]]
-Global value numbering only knows that runtime values are equal; they
-are not comparable (=<, >, <== etc.), and the /actual/ value is not
-known.
+   The relevant CodeQL constructs are
+   #+BEGIN_SRC java
+     import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+     ...
+     globalValueNumber(e) = globalValueNumber(sizeExpr) and
+     e != sizeExpr
+     ...
+   #+END_SRC
 
-XX: Look for and use /relative/ values between allocation and use. To do
-this, use GVN.
+   We can use global value numbering to identify common values as first step, but
+   for expressions like
+   #+begin_example
+   buf[sz * x * y - 1]; // COMPLIANT
+   #+end_example
+   we have to "evaluate" the expressions -- or at least bound them.
 
-XX: This is the case in
+*** interim
+    #+BEGIN_SRC java
+      /**
+       ,* @ kind problem
+       ,*/
 
-#+begin_example
-void test_gvn_var(unsigned long x, unsigned long y, unsigned long sz)
-{
-    char *buf = malloc(sz * x * y);
-    buf[sz * x * y - 1]; // COMPLIANT
-    buf[sz * x * y];     // NON_COMPLIANT
-    buf[sz * x * y + 1]; // NON_COMPLIANT
-}
-#+end_example
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
 
-XX: Range analyis won't bound =sz * x * y=, so switch to global value
-numbering. Or use hashcons.
+      // Step 9
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
+        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize, int accessMax,
+        int allocatedUnits, int maxAccessedIndex
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        // buf[...]
+        //     ^^^  int accessIdx
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        //
+        // Not really:
+        //   allocSizeExpr = buffer.(Call).getArgument(0) and
+        //
+        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
+        allocsize = allocSizeExpr.getValue().toInt() and
+        //
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+        bufferSizeExpr.getValue().toInt() = bufferSize and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        arrayTypeSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() and
+        1 = allocBaseSize and
+        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+        upperBound(accessIdx) = accessMax and
+        allocBaseSize * allocsize = allocatedUnits and
+        arrayTypeSize * accessMax = maxAccessedIndex and
+        // only consider out-of-bounds
+        maxAccessedIndex >= allocatedUnits
+      select access,
+        "Array access at or beyond size; have " + allocatedUnits + " units, access at " + maxAccessedIndex,
+        globalValueNumber(accessIdx) as gvnAccess, globalValueNumber(allocSizeExpr) as gvnAlloc
+    #+END_SRC
 
-XX: global value numbering finds expressions with the same known value,
-independent of structure.
+*** interim
+    Messy, start over.
 
-#+begin_example
-...
-globalValueNumber(e) = globalValueNumber(sizeExpr) and
-e != sizeExpr
-...
-#+end_example
+    #+BEGIN_SRC java
 
-XX: hashcons: every value gets a number based on structure. Fails on
+      import cpp
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
 
+      // Step 9
+      from
+        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, GVN gvnAccess,
+        GVN gvnAlloc
+      where
+        // malloc (100)
+        // ^^^^^^^^^^^^ AllocationExpr buffer
+        //
+        // buf[...]
+        // ^^^  ArrayExpr access
+        // buf[...]
+        //     ^^^ accessIdx
+        accessIdx = access.getArrayOffset() and
+        //
+        // malloc (100)
+        //         ^^^ allocSizeExpr / bufferSize
+        // unsigned long size = 100;
+        // ...
+        // char *buf = malloc(size);
+        DataFlow::localExprFlow(allocSizeExpr, buffer.getSizeExpr()) and
+        // char *buf  = ... buf[0];
+        //       ^^^  --->  ^^^
+        // or
+        // malloc(100);   buf[0]
+        // ^^^  --------> ^^^
+        //
+        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+        //
+        // Use GVN
+        globalValueNumber(accessIdx) = gvnAccess and
+        globalValueNumber(allocSizeExpr) = gvnAlloc and
+        (
+          gvnAccess = gvnAlloc
+          or
+          // buf[sz * x * y] above
+          // buf[sz * x * y + 1];
+          exists(AddExpr add |
+            accessIdx = add and
+            // add.getAnOperand() = accessIdx and
+            add.getAnOperand().getValue().toInt() > 0 and
+            globalValueNumber(add.getAnOperand()) = gvnAlloc
+          )
+        )
+      select access, gvnAccess, gvnAlloc
+    #+END_SRC
+    
+** TODO hashcons
+import semmle.code.cpp.valuenumbering.HashCons
+
+hashcons: every value gets a number based on structure. Fails on
 #+begin_example
 char *buf = malloc(sz * x * y);
 sz = 100;
 buf[sz * x * y - 1]; // COMPLIANT
 #+end_example
 
-XX: global value numbering to identify common values as first step, but
-for expressions like
-
-#+begin_example
-buf[sz * x * y - 1]; // COMPLIANT
-#+end_example
-
-we have to "evaluate" the expressions -- or at least bound them.
 
 The final exercise is to implement the =isOffsetOutOfBoundsGVN=
 predicate to [...]
-
-
-
-
