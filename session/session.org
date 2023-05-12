@@ -163,7 +163,7 @@ skeleton code, not a full source code repository.
    constant expression.
 
 *** Solution
-   #+BEGIN_SRC java
+   #+BEGIN_SRC java :tangle example1.ql
 // Step 1
 // void test_const(void)
 // void test_const_var(void)
@@ -209,7 +209,7 @@ To address these, take the query from the previous exercise and
 
 *** Solution
 
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example2.ql
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
 
@@ -269,7 +269,7 @@ To address these, take the query from the previous exercise and
 
 *** Solution
 
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example3.ql
 
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
@@ -320,7 +320,7 @@ To address these, take the query from the previous exercise and
    
 *** Solution
 
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example4.ql
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
 
@@ -413,7 +413,7 @@ XX:
    : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
 *** Solution
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example5.ql
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
       import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
@@ -491,7 +491,7 @@ XX:
       =double=? 
 
 *** Solution
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example6.ql
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
       import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
@@ -546,7 +546,7 @@ XX:
    3. Compare buffer allocation size to the access index.
 
 *** Solution:
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example7.ql
       import cpp
       import semmle.code.cpp.dataflow.DataFlow
       import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
@@ -612,7 +612,7 @@ XX:
       to get nicer reporting.
 
 *** Solution:
-    #+BEGIN_SRC java
+    #+BEGIN_SRC java :tangle example8.ql
       /**
        ,* @kind problem
        ,*/
