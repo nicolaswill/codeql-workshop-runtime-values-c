@@ -1,0 +1,8 @@
+---
+library: false
+name: session-tests
+version: 0.0.1
+dependencies:
+  "session": "*"
+extractor: cpp
+tests: .

@@ -1,0 +1,12 @@
+| test.c:7:17:7:22 | call to malloc | test.c:8:5:8:10 | access to array | 0 | test.c:8:9:8:9 | 0 |
+| test.c:7:17:7:22 | call to malloc | test.c:9:5:9:11 | access to array | 99 | test.c:9:9:9:10 | 99 |
+| test.c:7:17:7:22 | call to malloc | test.c:10:5:10:12 | access to array | 100 | test.c:10:9:10:11 | 100 |
+| test.c:16:17:16:22 | call to malloc | test.c:17:5:17:10 | access to array | 0 | test.c:17:9:17:9 | 0 |
+| test.c:16:17:16:22 | call to malloc | test.c:18:5:18:11 | access to array | 99 | test.c:18:9:18:10 | 99 |
+| test.c:16:17:16:22 | call to malloc | test.c:20:5:20:12 | access to array | 100 | test.c:20:9:20:11 | 100 |
+| test.c:28:17:28:22 | call to malloc | test.c:35:5:35:10 | access to array | 0 | test.c:35:9:35:9 | 0 |
+| test.c:28:17:28:22 | call to malloc | test.c:36:5:36:11 | access to array | 99 | test.c:36:9:36:10 | 99 |
+| test.c:28:17:28:22 | call to malloc | test.c:38:5:38:12 | access to array | 100 | test.c:38:9:38:11 | 100 |
+| test.c:63:17:63:22 | call to malloc | test.c:65:5:65:10 | access to array | 0 | test.c:65:9:65:9 | 0 |
+| test.c:63:17:63:22 | call to malloc | test.c:66:5:66:12 | access to array | 100 | test.c:66:9:66:11 | 100 |
+| test.c:63:17:63:22 | call to malloc | test.c:67:5:67:12 | access to array | 200 | test.c:67:9:67:11 | 200 |

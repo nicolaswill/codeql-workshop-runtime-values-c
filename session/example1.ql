@@ -1,6 +1,6 @@
-// Step 1
-// void test_const(void)
-// void test_const_var(void)
+import cpp
+import semmle.code.cpp.dataflow.DataFlow
+
 from AllocationExpr buffer, ArrayExpr access, int bufferSize, int accessIdx, Expr allocSizeExpr
 where
   // malloc (100)
