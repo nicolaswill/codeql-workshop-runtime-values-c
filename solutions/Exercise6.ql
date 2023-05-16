@@ -9,6 +9,7 @@ import cpp
 import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 import semmle.code.cpp.dataflow.DataFlow
 import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+import RuntimeValues
 
 /**
  * Gets an expression that flows to `dest` and has a constant value.
@@ -36,73 +37,38 @@ int getMaxStatedValue(Expr e) {
   result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
 }
 
-bindingset[expr]
-int getExprOffsetValue(Expr expr, Expr base) {
-  result = expr.(AddExpr).getRightOperand().getValue().toInt() and
-  base = expr.(AddExpr).getLeftOperand()
-  or
-  result = -expr.(SubExpr).getRightOperand().getValue().toInt() and
-  base = expr.(SubExpr).getLeftOperand()
-  or
-  // currently only AddExpr and SubExpr are supported: else, fall-back to 0
-  not expr instanceof AddExpr and
-  not expr instanceof SubExpr and
-  base = expr and
-  result = 0
+predicate allocatedBufferArrayAccess(ArrayExpr access, FunctionCall alloc) {
+  alloc.getTarget().hasName("malloc") and
+  DataFlow::localExprFlow(alloc, access.getArrayBase())
 }
 
-class AllocationCall extends FunctionCall {
-  AllocationCall() { this.getTarget() instanceof AllocationFunction }
-
-  Expr getBuffer() { result = this }
-
-  Expr getSizeExpr() {
-    // AllocationExpr may sometimes return a subexpression of the size expression
-    // in order to separate the size from a sizeof expression in a MulExpr.
-    exists(AllocationFunction f |
-      f = this.(FunctionCall).getTarget() and
-      result = this.(FunctionCall).getArgument(f.getSizeArg())
-    )
-  }
-
-  int getFixedSize() { result = getMaxStatedValue(this.getSizeExpr()) }
-}
-
-class AccessExpr extends ArrayExpr {
-  AllocationCall source;
-
-  AccessExpr() { DataFlow::localExprFlow(source.getBuffer(), this.getArrayBase()) }
-
-  AllocationCall getSource() { result = source }
-
-  int getFixedArrayOffset() {
-    exists(Expr base, int offset |
-      offset = getExprOffsetValue(this.getArrayOffset(), base) and
-      result = getMaxStatedValue(base) + offset
-    )
-  }
+int getFixedArrayOffset(ArrayExpr access) {
+  exists(Expr base, int offset |
+    offset = getExprOffsetValue(access.getArrayOffset(), base) and
+    result = getMaxStatedValue(base) + offset
+  )
 }
 
 predicate isOffsetOutOfBoundsConstant(
-  AccessExpr access, AllocationCall source, int allocSize, int accessOffset
+  ArrayExpr access, FunctionCall source, int allocSize, int accessOffset
 ) {
-  source = access.getSource() and
-  allocSize = source.getFixedSize() and
-  accessOffset = access.getFixedArrayOffset() and
+  allocatedBufferArrayAccess(access, source) and
+  allocSize = getMaxStatedValue(source.getArgument(0)) and
+  accessOffset = getFixedArrayOffset(access) and
   accessOffset >= allocSize
 }
 
-predicate isOffsetOutOfBoundsGVN(AccessExpr access, AllocationCall source) {
-  source = access.getSource() and
+predicate isOffsetOutOfBoundsGVN(ArrayExpr access, FunctionCall source) {
+  allocatedBufferArrayAccess(access, source) and
   not isOffsetOutOfBoundsConstant(access, source, _, _) and
   exists(Expr accessOffsetBase, int accessOffsetBaseValue |
     accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
-    globalValueNumber(source.getSizeExpr()) = globalValueNumber(accessOffsetBase) and
+    globalValueNumber(source.getArgument(0)) = globalValueNumber(accessOffsetBase) and
     not accessOffsetBaseValue < 0
   )
 }
 
-from AllocationCall source, AccessExpr access, string message
+from FunctionCall source, ArrayExpr access, string message
 where
   exists(int allocSize, int accessOffset |
     isOffsetOutOfBoundsConstant(access, source, allocSize, accessOffset) and

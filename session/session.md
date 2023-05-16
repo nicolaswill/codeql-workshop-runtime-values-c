@@ -153,6 +153,8 @@ In the first step we are going to
 1.  identify a dynamic allocation with `malloc` and
 2.  an access to that allocated buffer. The access is via an array expression; we are **not** going to cover pointer dereferencing.
 
+We are going to accomplish these tasks via predicates.
+
 The goal of this exercise is to then output the array access, array size, buffer, and buffer offset.
 
 The focus here is on
