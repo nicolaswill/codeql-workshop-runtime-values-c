@@ -132,22 +132,27 @@ Standards repository]].
   :END:
 
 Unlike the the [[../README.md#org3b74422][exercises]] which use the /collection/ of test problems in
-=exercises-test=, this workshop is a sequential session as one following the
-actual process of writing CodeQL: use a /single/ database built from a single,
-larger segment of code.  For this workshop, the larger segment is still simplified
-skeleton code, not a full source code repository.
+=exercises-test=, this workshop is a sequential session following the actual
+process of writing CodeQL: use a /single/ database built from a single, larger
+segment of code and inspect the query results as you write the query.  
+
+For this workshop, the larger segment of code is still simplified skeleton code,
+not a full source code repository.
+
+The queries are embedded in `session.md` but can also be found in the
+`example*.ql` files.  They can all be run as test cases in VS Code.
 
 ** Step 1
    :PROPERTIES:
    :CUSTOM_ID: exercise-1
    :END:
-   In the first step we are going to start by
-   1. modelling a dynamic allocation with =malloc= and
-   2. an access to that allocated buffer with an
-   3. array expression.
+   In the first step we are going to
+   1. identify a dynamic allocation with =malloc= and
+   2. an access to that allocated buffer.   The access is via an array expression;
+      we are *not* going to cover pointer dereferencing.
 
-   The goal of this exercise is to then output the array access, buffer, array size,
-   and buffer offset.
+   The goal of this exercise is to then output the array access, array size,
+   buffer, and buffer offset.
 
    The focus here is on
    : void test_const(void)
@@ -163,36 +168,14 @@ skeleton code, not a full source code repository.
    constant expression.
 
 *** Solution
-   #+BEGIN_SRC java :tangle example1.ql
-     import cpp
-     import semmle.code.cpp.dataflow.DataFlow
-
-     from AllocationExpr buffer, ArrayExpr access, int bufferSize, int accessIdx, Expr allocSizeExpr
-     where
-       // malloc (100)
-       // ^^^^^^  AllocationExpr buffer
-       //
-       // buf[...]
-       // ^^^  ArrayExpr access
-       //
-       // buf[...]
-       //     ^^^  int accessIdx
-       //
-       accessIdx = access.getArrayOffset().getValue().toInt() and
-       //
-       // malloc (100)
-       //         ^^^ allocSizeExpr / bufferSize
-       //
-       allocSizeExpr = buffer.(Call).getArgument(0) and
-       bufferSize = allocSizeExpr.getValue().toInt()
-     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
-   #+END_SRC
+   #+INCLUDE: "example1.ql" src java
 
 This produces 12 results, with some cross-function pairs.
 
 ** Step 2
 The previous query fails to connect the =malloc= calls with the array accesses,
-and =mallocs= from one function are paired with accesses in another.
+and in the results, =mallocs= from one function are paired with accesses in
+another.
 
 To address these, take the query from the previous exercise and
 1. connect the allocation(s) with the
@@ -209,40 +192,7 @@ To address these, take the query from the previous exercise and
 
 *** Solution
 
-    #+BEGIN_SRC java :tangle example2.ql
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-
-      // Step 2
-      // void test_const(void)
-      // void test_const_var(void)
-      from AllocationExpr buffer, ArrayExpr access, int bufferSize, int accessIdx, Expr allocSizeExpr
-      where
-        // malloc (100)
-        // ^^^^^^  AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        //
-        // buf[...]
-        //     ^^^  int accessIdx
-        //
-        accessIdx = access.getArrayOffset().getValue().toInt() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        allocSizeExpr = buffer.(Call).getArgument(0) and
-        bufferSize = allocSizeExpr.getValue().toInt() and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
-    #+END_SRC
+    #+INCLUDE: "example2.ql" src java
 
 *** Results
     There are now 3 results.  These are from only one function, the one using constants.
@@ -269,115 +219,43 @@ To address these, take the query from the previous exercise and
 
 *** Solution
 
-    #+BEGIN_SRC java :tangle example3.ql
-
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-
-      // Step 3
-      // void test_const_var(void)
-      from AllocationExpr buffer, ArrayExpr access, int accessIdx, Expr allocSizeExpr
-      where
-        // malloc (100)
-        // ^^^^^^  AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        //
-        // buf[...]
-        //     ^^^  int accessIdx
-        //
-        accessIdx = access.getArrayOffset().getValue().toInt() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        allocSizeExpr = buffer.(Call).getArgument(0) and
-        // bufferSize = allocSizeExpr.getValue().toInt() and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, access, accessIdx, access.getArrayOffset() 
-    #+END_SRC
+    #+INCLUDE: "example3.ql" src java
 
 *** Results
     Now, we get 12 results, including some from other test cases.
 
 ** Step 4
    We are looking for out-of-bounds accesses, so we to need to include the
-   bounds.  But in a different way.
+   bounds.  But in a more general way than looking only at constant values.
 
    Note the results for the cases in =test_const_var= which involve a variable
-   access rather than a constant. The next goal is to handle the case where the
-   allocation size or array index are variables (with constant values) rather than
-   integer constants.
+   access rather than a constant. The next goal is
+   1. to handle the case where the allocation size or array index are variables
+      (with constant values) rather than integer constants.
 
    We have an expression =size= that flows into the =malloc()= call.
    
+*** Hint
+    
 *** Solution
 
-    #+BEGIN_SRC java :tangle example4.ql
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-
-      // Step 4
-      from AllocationExpr buffer, ArrayExpr access, int accessIdx, Expr allocSizeExpr, int bufferSize, Expr bse
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        //
-        // buf[...]
-        //     ^^^  int accessIdx
-        //
-        accessIdx = access.getArrayOffset().getValue().toInt() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        allocSizeExpr = buffer.(Call).getArgument(0) and
-        // bufferSize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        exists(Expr bufferSizeExpr |
-          DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-          bufferSizeExpr.getValue().toInt() = bufferSize
-          and bse = bufferSizeExpr
-        ) and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bse
-    #+END_SRC
+    #+INCLUDE: "example4.ql" src java
 
 *** Results
     Now, we get 15 results, limited to statically determined values.
 
-   XX: to implement predicates
-   =getSourceConstantExpr=, =getFixedSize=, and =getFixedArrayOffset= 
-   Use local data-flow analysis to complete the =getSourceConstantExpr=
-   predicate. The =getFixedSize= and =getFixedArrayOffset= predicates can
-   be completed using =getSourceConstantExpr=.
+    XX: Implement predicates
+    =getSourceConstantExpr=, =getFixedSize=, and =getFixedArrayOffset= 
+    Use local data-flow analysis to complete the =getSourceConstantExpr=
+    predicate. The =getFixedSize= and =getFixedArrayOffset= predicates can
+    be completed using =getSourceConstantExpr=.
     
-XX:
-   1. start with query.
-      =elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
-   2. convert to predicate.
-   3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
-      is different from those below.
-
+    XX:
+    1. start with query.
+       =elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
+    2. convert to predicate.
+    3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
+       is different from those below.
 
 ** Step 5 -- SimpleRangeAnalysis
    Running the query from Step 2 against the database yields a
@@ -413,50 +291,7 @@ XX:
    : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
 *** Solution
-    #+BEGIN_SRC java :tangle example5.ql
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-
-      // Step 5
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
-        int allocsize, Expr bufferSizeExpr
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        //
-        // buf[...]
-        //     ^^^  int accessIdx
-        //
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        // Not really:
-        //   allocSizeExpr = buffer.(Call).getArgument(0) and
-        //
-        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
-        allocsize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-        bufferSizeExpr.getValue().toInt() = bufferSize and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, accessIdx, allocsize, allocSizeExpr
-    #+END_SRC
+    #+INCLUDE: "example5.ql" src java
 
 *** Results
     Now, we get 48 results.
@@ -491,48 +326,7 @@ XX:
       =double=? 
 
 *** Solution
-    #+BEGIN_SRC java :tangle example6.ql
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-
-      // Step 6
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
-        int allocsize, Expr bufferSizeExpr
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        // buf[...]
-        //     ^^^  int accessIdx
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        // Not really:
-        //   allocSizeExpr = buffer.(Call).getArgument(0) and
-        //
-        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
-        allocsize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-        bufferSizeExpr.getValue().toInt() = bufferSize and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, accessIdx, allocsize, allocSizeExpr,  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType() as arrayBaseType, access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() as arrayTypeSize,  1 as allocBaseSize
-    #+END_SRC
+    #+INCLUDE: "example6.ql" src java
 
 *** Results
     48 results in the table
@@ -546,52 +340,7 @@ XX:
    3. Compare buffer allocation size to the access index.
 
 *** Solution:
-    #+BEGIN_SRC java :tangle example7.ql
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-
-      // Step 7
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
-        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        // buf[...]
-        //     ^^^  int accessIdx
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        // Not really:
-        //   allocSizeExpr = buffer.(Call).getArgument(0) and
-        //
-        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
-        allocsize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-        bufferSizeExpr.getValue().toInt() = bufferSize and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        arrayTypeSize =  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() 
-        and
-        1 = allocBaseSize
-        and
-        DataFlow::localExprFlow(buffer, access.getArrayBase())
-      select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, allocSizeExpr,   allocBaseSize * allocsize as allocatedUnits, arrayTypeSize * accessMax as maxAccessedIndex
-    #+END_SRC
+    #+INCLUDE: "example7.ql" src java
 
 *** Results
     48 results in the much cleaner table
@@ -612,60 +361,7 @@ XX:
       to get nicer reporting.
 
 *** Solution:
-    #+BEGIN_SRC java :tangle example8.ql
-      /**
-       ,* @kind problem
-       ,*/
-
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-
-      // Step 8
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
-        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize, int accessMax,
-        int allocatedUnits, int maxAccessedIndex
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        // buf[...]
-        //     ^^^  int accessIdx
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        // Not really:
-        //   allocSizeExpr = buffer.(Call).getArgument(0) and
-        //
-        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
-        allocsize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-        bufferSizeExpr.getValue().toInt() = bufferSize and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        arrayTypeSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() and
-        1 = allocBaseSize and
-        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
-        upperBound(accessIdx) = accessMax and
-        allocBaseSize * allocsize = allocatedUnits and
-        arrayTypeSize * accessMax =  maxAccessedIndex and
-        // only consider out-of-bounds
-        maxAccessedIndex >= allocatedUnits
-      select access, "Array access at or beyond size; have "+allocatedUnits + " units, access at "+ maxAccessedIndex
-    #+END_SRC
+    #+INCLUDE: "example8.ql" src java
 
 *** Results
     14 results in the much cleaner table
@@ -794,58 +490,7 @@ XX:
 *** interim
     Messy, start over.
 
-    #+BEGIN_SRC java
-
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
-
-      // Step 9
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, GVN gvnAccess,
-        GVN gvnAlloc
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        // buf[...]
-        //     ^^^ accessIdx
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(allocSizeExpr, buffer.getSizeExpr()) and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
-        //
-        // Use GVN
-        globalValueNumber(accessIdx) = gvnAccess and
-        globalValueNumber(allocSizeExpr) = gvnAlloc and
-        (
-          gvnAccess = gvnAlloc
-          or
-          // buf[sz * x * y] above
-          // buf[sz * x * y + 1];
-          exists(AddExpr add |
-            accessIdx = add and
-            // add.getAnOperand() = accessIdx and
-            add.getAnOperand().getValue().toInt() > 0 and
-            globalValueNumber(add.getAnOperand()) = gvnAlloc
-          )
-        )
-      select access, gvnAccess, gvnAlloc
-    #+END_SRC
+    #+INCLUDE: "example9.ql" src java
     
 ** TODO hashcons
 import semmle.code.cpp.valuenumbering.HashCons
