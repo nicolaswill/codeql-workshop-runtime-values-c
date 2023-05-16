@@ -131,16 +131,37 @@ Standards repository]].
   :CUSTOM_ID: sessionworkshop-notes
   :END:
 
-Unlike the the [[../README.md#org3b74422][exercises]] which use the /collection/ of test problems in
-=exercises-test=, this workshop is a sequential session following the actual
-process of writing CodeQL: use a /single/ database built from a single, larger
-segment of code and inspect the query results as you write the query.  
+  Unlike the the [[../README.md#org3b74422][exercises]] which use the /collection/ of test problems in
+  =exercises-test=, this workshop is a sequential session following the actual
+  process of writing CodeQL: use a /single/ database built from a single, larger
+  segment of code and inspect the query results as you write the query.  
 
-For this workshop, the larger segment of code is still simplified skeleton code,
-not a full source code repository.
+  For this workshop, the larger segment of code is still simplified skeleton code,
+  not a full source code repository.
 
-The queries are embedded in `session.md` but can also be found in the
-`example*.ql` files.  They can all be run as test cases in VS Code.
+  The queries are embedded in `session.md` but can also be found in the
+  `example*.ql` files.  They can all be run as test cases in VS Code.
+
+  To reiterate:
+
+  This workshop focuses on analyzing and relating two /static/ values --- array
+  access indices and memory allocation sizes --- in order to identify
+  simple cases of out-of-bounds array accesses.  We do not handle /dynamic/ values
+  but take advantage of special cases.
+
+  To find these issues,
+  1. We can implement an analysis that tracks the upper or lower bounds on an
+     expression.
+  2. We then combine this with data-flow analysis to reduce false positives and
+     identify cases where the index of the array results in an access beyond the
+     allocated size of the buffer.
+  3. We further extend these queries with rudimentary arithmetic support involving
+     expressions common to the allocation and the array access.
+  4. For cases where this is insufficient, we introduce global value numbering
+     [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering][GVN]] in [[*Step 9 -- Global Value Numbering][Step 9 -- Global Value Numbering]], to detect values known to be equal
+     at runtime.
+  5. When /those/ cases are insufficient, and we handle the case of identical
+     structure using [[*hashconsing][hashconsing]].
 
 ** Step 1
    :PROPERTIES:
@@ -385,7 +406,7 @@ To address these, take the query from the previous exercise and
    constants that flow to a given expression.  Another approach is global value
    numbering, used next.
 
-** Step 9 -- GlobalValueNumbering
+** Step 9 -- Global Value Numbering
    Range analyis won't bound =sz * x * y=, so switch to global value
    numbering.
    This is the case in the last test case, 
@@ -492,7 +513,7 @@ To address these, take the query from the previous exercise and
 
     #+INCLUDE: "example9.ql" src java
     
-** TODO hashcons
+** TODO hashconsing
 import semmle.code.cpp.valuenumbering.HashCons
 
 hashcons: every value gets a number based on structure. Fails on
