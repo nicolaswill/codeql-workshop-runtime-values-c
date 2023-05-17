@@ -365,19 +365,56 @@ To address these, take the query from the previous exercise and
 
 ** Step 7
    1. Clean up the query.
-   2. Add expressions for =allocatedUnits= (from the malloc) and a
+   2. Compare buffer allocation size to the access index.
+   3. Add expressions for =allocatedUnits= (from the malloc) and a
       =maxAccessedIndex= (from array accesses)
-   3. Compare buffer allocation size to the access index.
+      1. Calculate the =accessOffset= / =maxAccessedIndex= (from array accesses)
+      2. Calculate the =allocSize= / =allocatedUnits= (from the malloc)
+      3. Compare them
 
 *** Solution:
     #+INCLUDE: "example7.ql" src java
 
-*** Results
-    48 results in the much cleaner table
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example7/example7.expected" :lines "-6"’
 
-    | no. | buffer         | bufferSizeExpr | access          | accessMax | allocSizeExpr | allocatedUnits | maxAccessedIndex |   |
-    |  1 | call to malloc |            200 | access to array |         0 |           200 |            200 |                0 |   |
+** Step 7a
+   Introduce more general predicates.
+   1. Move these into a single predicate, =isOffsetOutOfBoundsConstant=
 
+*** TODO incoporate
+    #+BEGIN_SRC java
+      /**
+       ,* Gets the smallest of the upper bound of `e` or the largest source value (i.e. "stated value") that flows to `e`.
+       ,* Because range-analysis can over-widen bounds, take the minimum of range analysis and data-flow sources.
+       ,*
+       ,* If there is no source value that flows to `e`, this predicate does not hold.
+       ,*
+       ,* This predicate, if `e` is the `sz` arg to `malloc`, would return `20` for the following:
+       ,* ```
+       ,* size_t sz = condition ? 10 : 20;
+       ,* malloc(sz);
+       ,* ```
+       ,*/
+      bindingset[e]
+      int getMaxStatedValue(Expr e) {
+        result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
+      }
+    #+END_SRC
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      predicate isOffsetOutOfBoundsConstant(
+        ArrayExpr access, FunctionCall source, int allocSize, int accessOffset
+      ) {
+        ensureSameFunction(access, source) and
+        // allocatedBufferArrayAccess(access, source) and
+        allocSize = getMaxStatedValue(source.getArgument(0)) and
+        accessOffset = getFixedArrayOffset(access) and
+        accessOffset >= allocSize
+      }
+    #+END_SRC
+   
 ** Step 8
    1. Clean up the query.
    2. Compare buffer allocation size to the access index.
@@ -457,32 +494,30 @@ To address these, take the query from the previous exercise and
    #+end_example
    we have to "evaluate" the expressions -- or at least bound them.
 
-*** TODO incoporate
-    #+BEGIN_SRC java
-      /**
-       ,* Gets the smallest of the upper bound of `e` or the largest source value (i.e. "stated value") that flows to `e`.
-       ,* Because range-analysis can over-widen bounds, take the minimum of range analysis and data-flow sources.
-       ,*
-       ,* If there is no source value that flows to `e`, this predicate does not hold.
-       ,*
-       ,* This predicate, if `e` is the `sz` arg to `malloc`, would return `20` for the following:
-       ,* ```
-       ,* size_t sz = condition ? 10 : 20;
-       ,* malloc(sz);
-       ,* ```
-       ,*/
-      bindingset[e]
-      int getMaxStatedValue(Expr e) {
-        result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
-      }
-    #+END_SRC
-
 *** DONE incorporate
     Done by =ensureSameFunction= instead.
     #+BEGIN_SRC java
       predicate allocatedBufferArrayAccess(ArrayExpr access, FunctionCall alloc) {
         alloc.getTarget().hasName("malloc") and
         DataFlow::localExprFlow(alloc, access.getArrayBase())
+      }
+    #+END_SRC
+
+*** TODO incorporate
+    #+BEGIN_SRC java
+      bindingset[expr]
+      int getExprOffsetValue(Expr expr, Expr base) {
+        result = expr.(AddExpr).getRightOperand().getValue().toInt() and
+        base = expr.(AddExpr).getLeftOperand()
+        or
+        result = -expr.(SubExpr).getRightOperand().getValue().toInt() and
+        base = expr.(SubExpr).getLeftOperand()
+        or
+        // currently only AddExpr and SubExpr are supported: else, fall-back to 0
+        not expr instanceof AddExpr and
+        not expr instanceof SubExpr and
+        base = expr and
+        result = 0
       }
     #+END_SRC
 
@@ -498,20 +533,8 @@ To address these, take the query from the previous exercise and
 
 *** TODO incoporate
     #+BEGIN_SRC java
-      predicate isOffsetOutOfBoundsConstant(
-        ArrayExpr access, FunctionCall source, int allocSize, int accessOffset
-      ) {
-        allocatedBufferArrayAccess(access, source) and
-        allocSize = getMaxStatedValue(source.getArgument(0)) and
-        accessOffset = getFixedArrayOffset(access) and
-        accessOffset >= allocSize
-      }
-    #+END_SRC
-
-*** TODO incoporate
-    #+BEGIN_SRC java
       predicate isOffsetOutOfBoundsGVN(ArrayExpr access, FunctionCall source) {
-        allocatedBufferArrayAccess(access, source) and
+        ensureSameFunction(access, source) and
         not isOffsetOutOfBoundsConstant(access, source, _, _) and
         exists(Expr accessOffsetBase, int accessOffsetBaseValue |
           accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
