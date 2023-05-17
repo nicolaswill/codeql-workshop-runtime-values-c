@@ -278,6 +278,27 @@ To address these, take the query from the previous exercise and
     3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
        is different from those below.
 
+** Step 4a -- some clean-up using predicates
+
+   Note that the dataflow automatically captures/includes the
+   : allocSizeExpr = buffer.(Call).getArgument(0) 
+   so that's now redundant with =bufferSizeExpr= and can be removed. 
+   #+BEGIN_SRC java
+
+     allocSizeExpr = buffer.(Call).getArgument(0) and
+     // bufferSize = allocSizeExpr.getValue().toInt() and
+     //
+     // unsigned long size = 100;
+     // ...
+     // char *buf = malloc(size);
+     DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+
+   #+END_SRC
+
+*** Solution
+
+    #+INCLUDE: "example4a.ql" src java
+
 ** Step 5 -- SimpleRangeAnalysis
    Running the query from Step 2 against the database yields a
    significant number of missing or incorrect results. The reason is that

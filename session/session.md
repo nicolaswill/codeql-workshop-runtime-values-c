@@ -6,35 +6,37 @@
 - [Session/Workshop notes](#sessionworkshop-notes)
   - [Step 1](#exercise-1)
     - [Hints](#hints)
-    - [Solution](#org8ca1443)
-  - [Step 2](#org6138b3d)
+    - [Solution](#orgdb027c4)
+  - [Step 2](#org103a4a0)
     - [Hints](#hints)
-    - [Solution](#org287ad06)
-    - [Results](#org4b8509f)
+    - [Solution](#org9a38362)
+    - [Results](#org0373f43)
   - [Step 3](#exercise-2)
-    - [Solution](#orga37db88)
-    - [Results](#org22d1a25)
-  - [Step 4](#org493babd)
-    - [Hint](#org57d9881)
-    - [Solution](#org9303851)
-    - [Results](#org9ba681e)
-  - [Step 5 &#x2013; SimpleRangeAnalysis](#orgda84218)
-    - [Solution](#orgb5a7df0)
-    - [Results](#orgf04ac53)
-  - [Step 6](#orgd9ab97c)
-    - [Solution](#org79d9ce3)
-    - [Results](#org00d27a6)
-  - [Step 7](#org4bfd9c3)
-    - [Solution:](#orgf500bdf)
-    - [Results](#org07a41ff)
-  - [Step 8](#orgd642b5f)
-    - [Solution:](#org696e813)
-    - [Results](#org77abe31)
-  - [Interim notes](#org03ebd84)
-  - [Step 9 &#x2013; GlobalValueNumbering](#org29bb594)
-    - [interim](#orgfc8f904)
-    - [interim](#org53cf2e1)
-  - [hashcons](#org7ccef88)
+    - [Solution](#org100e79f)
+    - [Results](#orgc91557b)
+  - [Step 4](#org5ed496c)
+    - [Hint](#org353b905)
+    - [Solution](#org5e7a90d)
+    - [Results](#orgc376727)
+  - [Step 4a &#x2013; some clean-up using predicates](#org5fbc890)
+    - [Solution](#orgc0ef9cd)
+  - [Step 5 &#x2013; SimpleRangeAnalysis](#org3250327)
+    - [Solution](#orga42f2d0)
+    - [Results](#org2dd5caf)
+  - [Step 6](#org7bfbf7f)
+    - [Solution](#orgbf7f580)
+    - [Results](#orgc770d19)
+  - [Step 7](#org27d428b)
+    - [Solution:](#org1d7080e)
+    - [Results](#orgcc04f97)
+  - [Step 8](#orgd04e3b9)
+    - [Solution:](#org6638628)
+    - [Results](#org42712eb)
+  - [Interim notes](#org4007937)
+  - [Step 9 &#x2013; Global Value Numbering](#orgde8bf97)
+    - [interim](#org08c13b9)
+    - [interim](#org11a3f79)
+  - [hashconsing](#orgc7ce1fc)
 
 
 <a id="codeql-workshop--using-data-flow-and-range-analysis-to-find-out-of-bounds-accesses"></a>
@@ -143,6 +145,18 @@ For this workshop, the larger segment of code is still simplified skeleton code,
 
 The queries are embedded in \`session.md\` but can also be found in the \`example\*.ql\` files. They can all be run as test cases in VS Code.
 
+To reiterate:
+
+This workshop focuses on analyzing and relating two *static* values &#x2014; array access indices and memory allocation sizes &#x2014; in order to identify simple cases of out-of-bounds array accesses. We do not handle *dynamic* values but take advantage of special cases.
+
+To find these issues,
+
+1.  We can implement an analysis that tracks the upper or lower bounds on an expression.
+2.  We then combine this with data-flow analysis to reduce false positives and identify cases where the index of the array results in an access beyond the allocated size of the buffer.
+3.  We further extend these queries with rudimentary arithmetic support involving expressions common to the allocation and the array access.
+4.  For cases where this is insufficient, we introduce global value numbering [GVN](https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering) in [Step 9 &#x2013; Global Value Numbering](#orgde8bf97), to detect values known to be equal at runtime.
+5.  When *those* cases are insufficient, and we handle the case of identical structure using [hashconsing](#orgc7ce1fc).
+
 
 <a id="exercise-1"></a>
 
@@ -152,8 +166,6 @@ In the first step we are going to
 
 1.  identify a dynamic allocation with `malloc` and
 2.  an access to that allocated buffer. The access is via an array expression; we are **not** going to cover pointer dereferencing.
-
-We are going to accomplish these tasks via predicates.
 
 The goal of this exercise is to then output the array access, array size, buffer, and buffer offset.
 
@@ -175,7 +187,7 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
 1.  `Expr::getValue()::toInt()` can be used to get the integer value of a constant expression.
 
 
-<a id="org8ca1443"></a>
+<a id="orgdb027c4"></a>
 
 ### Solution
 
@@ -207,7 +219,7 @@ select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSize
 This produces 12 results, with some cross-function pairs.
 
 
-<a id="org6138b3d"></a>
+<a id="org103a4a0"></a>
 
 ## Step 2
 
@@ -227,7 +239,7 @@ To address these, take the query from the previous exercise and
 2.  The the array base is the `buf` part of `buf[0]`. Use the `Expr.getArrayBase()` predicate.
 
 
-<a id="org287ad06"></a>
+<a id="org9a38362"></a>
 
 ### Solution
 
@@ -256,6 +268,8 @@ where
   //
   allocSizeExpr = buffer.(Call).getArgument(0) and
   bufferSize = allocSizeExpr.getValue().toInt() and
+  //
+  // Ensure alloc and buffer access are in the same function 
   // char *buf  = ... buf[0];
   //       ^^^  --->  ^^^
   // or
@@ -267,7 +281,7 @@ select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSize
 ```
 
 
-<a id="org4b8509f"></a>
+<a id="org0373f43"></a>
 
 ### Results
 
@@ -295,7 +309,7 @@ Here, the `malloc` argument is a variable with known value.
 We include this result by removing the size-retrieval from the prior query.
 
 
-<a id="orga37db88"></a>
+<a id="org100e79f"></a>
 
 ### Solution
 
@@ -323,6 +337,8 @@ where
   //
   allocSizeExpr = buffer.(Call).getArgument(0) and
   // bufferSize = allocSizeExpr.getValue().toInt() and
+  //
+  // Ensure alloc and buffer access are in the same function   
   // char *buf  = ... buf[0];
   //       ^^^  --->  ^^^
   // or
@@ -334,14 +350,14 @@ select buffer, access, accessIdx, access.getArrayOffset()
 ```
 
 
-<a id="org22d1a25"></a>
+<a id="orgc91557b"></a>
 
 ### Results
 
 Now, we get 12 results, including some from other test cases.
 
 
-<a id="org493babd"></a>
+<a id="org5ed496c"></a>
 
 ## Step 4
 
@@ -354,12 +370,12 @@ Note the results for the cases in `test_const_var` which involve a variable acce
 We have an expression `size` that flows into the `malloc()` call.
 
 
-<a id="org57d9881"></a>
+<a id="org353b905"></a>
 
 ### Hint
 
 
-<a id="org9303851"></a>
+<a id="org5e7a90d"></a>
 
 ### Solution
 
@@ -395,6 +411,7 @@ where
     bufferSizeExpr.getValue().toInt() = bufferSize
     and bse = bufferSizeExpr
   ) and
+  // Ensure alloc and buffer access are in the same function 
   // char *buf  = ... buf[0];
   //       ^^^  --->  ^^^
   // or
@@ -406,7 +423,7 @@ select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bse
 ```
 
 
-<a id="org9ba681e"></a>
+<a id="orgc376727"></a>
 
 ### Results
 
@@ -421,7 +438,84 @@ XX:
 3.  then use classes, if desired. `class BufferAccess extends ArrayExpr` is different from those below.
 
 
-<a id="orgda84218"></a>
+<a id="org5fbc890"></a>
+
+## Step 4a &#x2013; some clean-up using predicates
+
+Note that the dataflow automatically captures/includes the
+
+    allocSizeExpr = buffer.(Call).getArgument(0) 
+
+so that's now redundant with `bufferSizeExpr` and can be removed.
+
+```java
+
+allocSizeExpr = buffer.(Call).getArgument(0) and
+// bufferSize = allocSizeExpr.getValue().toInt() and
+//
+// unsigned long size = 100;
+// ...
+// char *buf = malloc(size);
+DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+
+```
+
+
+<a id="orgc0ef9cd"></a>
+
+### Solution
+
+```java
+import cpp
+import semmle.code.cpp.dataflow.DataFlow
+
+from AllocationExpr buffer, ArrayExpr access, int accessIdx, int bufferSize, Expr bufferSizeExpr
+where
+  // malloc (100)
+  // ^^^^^^^^^^^^ AllocationExpr buffer
+  //
+  // buf[...]
+  // ^^^  ArrayExpr access
+  //
+  // buf[...]
+  //     ^^^  int accessIdx
+  //
+  accessIdx = access.getArrayOffset().getValue().toInt() and
+  getAllocConstantExpr(bufferSizeExpr, bufferSize) and
+  // Ensure alloc and buffer access are in the same function
+  ensureSameFunction(buffer, access.getArrayBase()) and
+  // Ensure size defintion and use are in same function, even for non-constant expressions.
+  ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr())
+//
+select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bufferSizeExpr
+
+/** Ensure the two expressions are in the same function body. */
+predicate ensureSameFunction(Expr a, Expr b) { DataFlow::localExprFlow(a, b) }
+
+/**
+ * Gets an expression that flows to the allocation (which includes those already in the allocation)
+ * and has a constant value.
+ */
+predicate getAllocConstantExpr(Expr bufferSizeExpr, int bufferSize) {
+  exists(AllocationExpr buffer |
+    //
+    // Capture BOTH with datflow:
+    // 1.
+    // malloc (100)
+    //         ^^^ allocSizeExpr / bufferSize
+    //
+    // 2.
+    // unsigned long size = 100;
+    // ...
+    // char *buf = malloc(size);
+    DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+    bufferSizeExpr.getValue().toInt() = bufferSize
+  )
+}
+```
+
+
+<a id="org3250327"></a>
 
 ## Step 5 &#x2013; SimpleRangeAnalysis
 
@@ -445,7 +539,7 @@ This requires the import
     import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
 
-<a id="orgb5a7df0"></a>
+<a id="orga42f2d0"></a>
 
 ### Solution
 
@@ -495,14 +589,14 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, acces
 ```
 
 
-<a id="orgf04ac53"></a>
+<a id="org2dd5caf"></a>
 
 ### Results
 
 Now, we get 48 results.
 
 
-<a id="orgd9ab97c"></a>
+<a id="org7bfbf7f"></a>
 
 ## Step 6
 
@@ -524,7 +618,7 @@ Hints:
 4.  These test cases all use type `char`. What would happen for `int` or `double`?
 
 
-<a id="org79d9ce3"></a>
+<a id="orgbf7f580"></a>
 
 ### Solution
 
@@ -572,7 +666,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, acces
 ```
 
 
-<a id="org00d27a6"></a>
+<a id="orgc770d19"></a>
 
 ### Results
 
@@ -583,7 +677,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, acces
 | 1 | call to malloc | 200 | access to array | 0 | 0 | 200 | 200 | char | 1 | 1 |
 
 
-<a id="org4bfd9c3"></a>
+<a id="org27d428b"></a>
 
 ## Step 7
 
@@ -592,7 +686,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, acces
 3.  Compare buffer allocation size to the access index.
 
 
-<a id="orgf500bdf"></a>
+<a id="org1d7080e"></a>
 
 ### Solution:
 
@@ -644,7 +738,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, alloc
 ```
 
 
-<a id="org07a41ff"></a>
+<a id="orgcc04f97"></a>
 
 ### Results
 
@@ -654,7 +748,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, alloc
 | 1   | call to malloc | 200            | access to array | 0         | 200           | 200            | 0                |  |
 
 
-<a id="orgd642b5f"></a>
+<a id="orgd04e3b9"></a>
 
 ## Step 8
 
@@ -672,7 +766,7 @@ select buffer, bufferSizeExpr, access, upperBound(accessIdx) as accessMax, alloc
     to get nicer reporting.
 
 
-<a id="org696e813"></a>
+<a id="org6638628"></a>
 
 ### Solution:
 
@@ -732,7 +826,7 @@ select access, "Array access at or beyond size; have "+allocatedUnits + " units,
 ```
 
 
-<a id="org77abe31"></a>
+<a id="org42712eb"></a>
 
 ### Results
 
@@ -743,7 +837,7 @@ select access, "Array access at or beyond size; have "+allocatedUnits + " units,
 | Array access at or beyond size; have 200 units, access at 200 | db.c:67:5 |
 
 
-<a id="org03ebd84"></a>
+<a id="org4007937"></a>
 
 ## Interim notes
 
@@ -756,9 +850,9 @@ int val = rand() ? rand() : 30;
 A similar case is present in the `test_const_branch` and `test_const_branch2` test-cases. In these cases, it is necessary to augment range analysis with data-flow and restrict the bounds to the upper or lower bound of computable constants that flow to a given expression. Another approach is global value numbering, used next.
 
 
-<a id="org29bb594"></a>
+<a id="orgde8bf97"></a>
 
-## Step 9 &#x2013; GlobalValueNumbering
+## Step 9 &#x2013; Global Value Numbering
 
 Range analyis won't bound `sz * x * y`, so switch to global value numbering. This is the case in the last test case,
 
@@ -795,7 +889,7 @@ We can use global value numbering to identify common values as first step, but f
 we have to "evaluate" the expressions &#x2013; or at least bound them.
 
 
-<a id="orgfc8f904"></a>
+<a id="org08c13b9"></a>
 
 ### interim
 
@@ -858,7 +952,7 @@ select access,
 ```
 
 
-<a id="org53cf2e1"></a>
+<a id="org11a3f79"></a>
 
 ### interim
 
@@ -917,9 +1011,9 @@ select access, gvnAccess, gvnAlloc
 ```
 
 
-<a id="org7ccef88"></a>
+<a id="orgc7ce1fc"></a>
 
-## TODO hashcons
+## TODO hashconsing
 
 import semmle.code.cpp.valuenumbering.HashCons
 

@@ -21,6 +21,8 @@ where
   //
   allocSizeExpr = buffer.(Call).getArgument(0) and
   // bufferSize = allocSizeExpr.getValue().toInt() and
+  //
+  // Ensure alloc and buffer access are in the same function   
   // char *buf  = ... buf[0];
   //       ^^^  --->  ^^^
   // or
