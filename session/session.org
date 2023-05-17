@@ -267,19 +267,6 @@ To address these, take the query from the previous exercise and
 *** Results
     Now, we get 15 results, limited to statically determined values.
 
-    XX: Implement predicates
-    =getSourceConstantExpr=, =getFixedSize=, and =getFixedArrayOffset= 
-    Use local data-flow analysis to complete the =getSourceConstantExpr=
-    predicate. The =getFixedSize= and =getFixedArrayOffset= predicates can
-    be completed using =getSourceConstantExpr=.
-    
-    XX:
-    1. start with query.
-       =elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
-    2. convert to predicate.
-    3. then use classes, if desired. =class BufferAccess extends ArrayExpr=
-       is different from those below.
-
 ** Step 4a -- some clean-up using predicates
 
    Note that the dataflow automatically captures/includes the
@@ -296,6 +283,11 @@ To address these, take the query from the previous exercise and
      DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
 
    #+END_SRC
+
+   Also, simplify the =from...where...select=:
+   1. Remove unnecessary =exists= clauses.
+   2. Use =DataFlow::localExprFlow= for the buffer and allocation sizes, with
+      =getValue().toInt()= as one possibility (one predicate).
 
 *** Solution
 
@@ -321,24 +313,24 @@ To address these, take the query from the previous exercise and
    range analysis is reliably identifying integer overflow and validating
    integer overflow checks.
 
-   First, simplify the =from...where...select=:
-   1. Remove unnecessary =exists= clauses.
-   2. Use =DataFlow::localExprFlow= for the buffer and allocation sizes, not
-      =getValue().toInt()= 
-
-   Then, add the use of the =SimpleRangeAnalysis= library.  Specifically, the
+   Now, add the use of the =SimpleRangeAnalysis= library.  Specifically, the
    relevant library predicates are =upperBound= and =lowerBound=, to be used with
-   the buffer access argument.  Experiment and decide which to use for this
-   exercise (=upperBound=, =lowerBound=, or both).
+   the buffer access argument.
 
-   This requires the import
-   : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+   Notes:
+   - This requires the import
+     : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+   - We are not limiting the array access to integers any longer.  Thus, we just
+     use 
+     : accessIdx = access.getArrayOffset()
+   - To see the results in the order used in the C code, use
+     : select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax
 
 *** Solution
     #+INCLUDE: "example5.ql" src java
 
-*** Results
-    Now, we get 48 results.
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example5/example5.expected" :lines "-6"’
 
 ** Step 6
    To finally determine (some) out-of-bounds accesses, we have to convert
@@ -450,11 +442,10 @@ To address these, take the query from the previous exercise and
    are not comparable (=<, >, <== etc.), and the /actual/ value is not
    known.
 
-   XX: global value numbering finds expressions with the same known value,
+   Global value numbering finds expressions with the same known value,
    independent of structure.
 
-   So, we look for and use /relative/ values between allocation and use. To do
-   this, use GVN.
+   So, we look for and use /relative/ values between allocation and use. 
 
    The relevant CodeQL constructs are
    #+BEGIN_SRC java
@@ -471,6 +462,99 @@ To address these, take the query from the previous exercise and
    buf[sz * x * y - 1]; // COMPLIANT
    #+end_example
    we have to "evaluate" the expressions -- or at least bound them.
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      /**
+       ,* Gets the smallest of the upper bound of `e` or the largest source value (i.e. "stated value") that flows to `e`.
+       ,* Because range-analysis can over-widen bounds, take the minimum of range analysis and data-flow sources.
+       ,*
+       ,* If there is no source value that flows to `e`, this predicate does not hold.
+       ,*
+       ,* This predicate, if `e` is the `sz` arg to `malloc`, would return `20` for the following:
+       ,* ```
+       ,* size_t sz = condition ? 10 : 20;
+       ,* malloc(sz);
+       ,* ```
+       ,*/
+      bindingset[e]
+      int getMaxStatedValue(Expr e) {
+        result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
+      }
+    #+END_SRC
+
+*** DONE incorporate
+    Done by =ensureSameFunction= instead.
+    #+BEGIN_SRC java
+      predicate allocatedBufferArrayAccess(ArrayExpr access, FunctionCall alloc) {
+        alloc.getTarget().hasName("malloc") and
+        DataFlow::localExprFlow(alloc, access.getArrayBase())
+      }
+    #+END_SRC
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      int getFixedArrayOffset(ArrayExpr access) {
+        exists(Expr base, int offset |
+          offset = getExprOffsetValue(access.getArrayOffset(), base) and
+          result = getMaxStatedValue(base) + offset
+        )
+      }
+    #+END_SRC
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      predicate isOffsetOutOfBoundsConstant(
+        ArrayExpr access, FunctionCall source, int allocSize, int accessOffset
+      ) {
+        allocatedBufferArrayAccess(access, source) and
+        allocSize = getMaxStatedValue(source.getArgument(0)) and
+        accessOffset = getFixedArrayOffset(access) and
+        accessOffset >= allocSize
+      }
+    #+END_SRC
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      predicate isOffsetOutOfBoundsGVN(ArrayExpr access, FunctionCall source) {
+        allocatedBufferArrayAccess(access, source) and
+        not isOffsetOutOfBoundsConstant(access, source, _, _) and
+        exists(Expr accessOffsetBase, int accessOffsetBaseValue |
+          accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
+          globalValueNumber(source.getArgument(0)) = globalValueNumber(accessOffsetBase) and
+          not accessOffsetBaseValue < 0
+        )
+      }
+    #+END_SRC
+
+*** TODO incoporate
+    #+BEGIN_SRC java
+      /**
+       ,* @id cpp/array-access-out-of-bounds
+       ,* @description Access of an array with an index that is greater or equal to the element num.
+       ,* @kind problem
+       ,* @problem.severity error
+       ,*/
+
+      import cpp
+      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+      import semmle.code.cpp.dataflow.DataFlow
+      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+      import RuntimeValues
+
+      from FunctionCall source, ArrayExpr access, string message
+      where
+        exists(int allocSize, int accessOffset |
+          isOffsetOutOfBoundsConstant(access, source, allocSize, accessOffset) and
+          message =
+            "Array access out of bounds: " + access.toString() + " with offset " + accessOffset.toString()
+              + " on $@ with size " + allocSize.toString()
+        )
+        or
+        isOffsetOutOfBoundsGVN(access, source) and
+        message = "Array access with index that is greater or equal to the size of the $@."
+      select access, message, source, "allocation"
+    #+END_SRC
 
 *** interim
     #+BEGIN_SRC java
