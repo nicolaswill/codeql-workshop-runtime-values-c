@@ -354,20 +354,14 @@ To address these, take the query from the previous exercise and
       to the allocated memory./ 
       So =size = 1=
 
-   3. Note that
-      =allocSizeExpr.getUnspecifiedType() as allocBaseType=
-      is wrong here.
-
-   4. These test cases all use type =char=.  What would happen for =int= or
+   3. These test cases all use type =char=.  What would happen for =int= or
       =double=? 
 
 *** Solution
     #+INCLUDE: "example6.ql" src java
 
-*** Results
-    48 results in the table
-
-    | 1 | call to malloc | 200 | access to array | 0 | 0 | 200 | 200 | char | 1 | 1 |
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example6/example6.expected" :lines "-6"’
 
 ** Step 7
    1. Clean up the query.
