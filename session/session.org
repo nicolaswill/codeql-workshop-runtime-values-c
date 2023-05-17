@@ -157,10 +157,12 @@ Standards repository]].
      allocated size of the buffer.
   3. We further extend these queries with rudimentary arithmetic support involving
      expressions common to the allocation and the array access.
-  4. For cases where this is insufficient, we introduce global value numbering
+  4. For cases where constant expressions are not available or are uncertain, we
+     first try [[*Step 5 -- SimpleRangeAnalysis][range analysis]] to expand the query's applicability.
+  5. For cases where this is insufficient, we introduce global value numbering
      [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering][GVN]] in [[*Step 9 -- Global Value Numbering][Step 9 -- Global Value Numbering]], to detect values known to be equal
      at runtime.
-  5. When /those/ cases are insufficient, and we handle the case of identical
+  6. When /those/ cases are insufficient, we handle the case of identical
      structure using [[*hashconsing][hashconsing]].
 
 ** Step 1
