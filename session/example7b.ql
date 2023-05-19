@@ -16,7 +16,13 @@ where
   // computeIndices(access, buffer, bufferSize, allocatedUnits, maxAccessedIndex)
   computeAllocationSize(buffer, bufferSize, allocatedUnits) and
   computeMaxAccess(access, maxAccessedIndex)
-select bufferSizeExpr, buffer, access, allocatedUnits, maxAccessedIndex
+  // only consider out-of-bounds
+  and 
+  maxAccessedIndex >= allocatedUnits
+select access,
+  "Array access at or beyond size; have " + allocatedUnits + " units, access at " + maxAccessedIndex
+
+// select bufferSizeExpr, buffer, access, allocatedUnits, maxAccessedIndex
 
 /**
  * Compute the maximum accessed index.
@@ -87,11 +93,9 @@ predicate ensureSameFunction(Expr a, Expr b) { DataFlow::localExprFlow(a, b) }
 predicate getAllocConstantExpr(Expr bufferSizeExpr, int bufferSize) {
   exists(AllocationExpr buffer |
     // Capture BOTH with datflow:
-    // 1.
-    // malloc (100)
-    //         ^^^ bufferSize
-    // 2.
-    // unsigned long size = 100; ... ; char *buf = malloc(size);
+    // 1. malloc (100)
+    //            ^^^ bufferSize
+    // 2. unsigned long size = 100; ... ; char *buf = malloc(size);
     DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
     bufferSizeExpr.getValue().toInt() = bufferSize
   )

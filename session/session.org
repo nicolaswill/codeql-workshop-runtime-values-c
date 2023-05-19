@@ -389,9 +389,72 @@ To address these, take the query from the previous exercise and
     #+INCLUDE: "../session-tests/Example7a/example7a.expected" :lines "-6"’
 
 ** Step 7b
-   Introduce more general predicates.
+   1. Introduce more general predicates.
+   2. Compare buffer allocation size to the access index.
+   3. Report only the questionable entries.
 
-   1. Move these into a single predicate, =isOffsetOutOfBoundsConstant=
+*** Solution:
+    #+INCLUDE: "example7b.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example7b/example7b.expected" :lines "-6"’
+
+** Step 8
+   1. Clean up the query.
+   2. Find the constant offset in differences of the form
+      : buf[sz * x * y - 1];  
+      and sums of the form
+      : buf[alloc_size + 1];
+      via a predicate.  Keep both terms for later use.
+
+   and 
+   extractBaseAndOffset(bufferSizeExpr, bufferBase, bufferOffset) 
+   and 
+   extractBaseAndOffset(bufferSizeExpr, bufferBase, bufferOffset) 
+
+*** TODO incorporate
+    #+BEGIN_SRC java
+      /**
+       ,* Extract base and offset from y = base+offset and y = base-offset.  For others, get y and 0.
+       ,* 
+       ,* For cases like
+       ,*     buf[sz * x * y - 1];  
+       ,* and
+       ,*     buf[alloc_size + 1];
+       ,*/
+      bindingset[expr]
+      predicate extractBaseAndOffset(Expr expr, Expr base, int offset) {
+        offset = expr.(AddExpr).getRightOperand().getValue().toInt() and
+        base = expr.(AddExpr).getLeftOperand()
+        or
+        offset = -expr.(SubExpr).getRightOperand().getValue().toInt() and
+        base = expr.(SubExpr).getLeftOperand()
+        or
+        // Currently only AddExpr and SubExpr are supported: else, fall-back to 0
+        not expr instanceof AddExpr and
+        not expr instanceof SubExpr and
+        base = expr and
+        offset = 0
+      }
+    #+END_SRC
+
+    instead of 
+    #+BEGIN_SRC java
+      bindingset[expr]
+      int getExprOffsetValue(Expr expr, Expr base) {
+        result = expr.(AddExpr).getRightOperand().getValue().toInt() and
+        base = expr.(AddExpr).getLeftOperand()
+        or
+        result = -expr.(SubExpr).getRightOperand().getValue().toInt() and
+        base = expr.(SubExpr).getLeftOperand()
+        or
+        // currently only AddExpr and SubExpr are supported: else, fall-back to 0
+        not expr instanceof AddExpr and
+        not expr instanceof SubExpr and
+        base = expr and
+        result = 0
+      }
+    #+END_SRC
 
 *** TODO incoporate
     #+BEGIN_SRC java
@@ -412,6 +475,7 @@ To address these, take the query from the previous exercise and
       bindingset[e]
       int getMaxStatedValue(Expr e) {
         result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
+// getAllocConstantExpr, not getSourceConstantExpr
       }
     #+END_SRC
 
@@ -427,26 +491,6 @@ To address these, take the query from the previous exercise and
         accessOffset >= allocSize
       }
     #+END_SRC
-   
-** Step 8
-   1. Clean up the query.
-   2. Compare buffer allocation size to the access index.
-   3. Report only the questionable entries.
-   4. Use
-      #+BEGIN_SRC java
-        /**
-         ,* @kind problem
-         ,*/
-      #+END_SRC
-      to get nicer reporting.
-
-*** Solution:
-    #+INCLUDE: "example8.ql" src java
-
-*** Results
-    14 results in the much cleaner table
-
-    | Array access at or beyond size; have 200 units, access at 200 | db.c:67:5 |
     
 ** Interim notes
    A common issue with the =SimpleRangeAnalysis= library is handling of
@@ -513,24 +557,6 @@ To address these, take the query from the previous exercise and
       predicate allocatedBufferArrayAccess(ArrayExpr access, FunctionCall alloc) {
         alloc.getTarget().hasName("malloc") and
         DataFlow::localExprFlow(alloc, access.getArrayBase())
-      }
-    #+END_SRC
-
-*** TODO incorporate
-    #+BEGIN_SRC java
-      bindingset[expr]
-      int getExprOffsetValue(Expr expr, Expr base) {
-        result = expr.(AddExpr).getRightOperand().getValue().toInt() and
-        base = expr.(AddExpr).getLeftOperand()
-        or
-        result = -expr.(SubExpr).getRightOperand().getValue().toInt() and
-        base = expr.(SubExpr).getLeftOperand()
-        or
-        // currently only AddExpr and SubExpr are supported: else, fall-back to 0
-        not expr instanceof AddExpr and
-        not expr instanceof SubExpr and
-        base = expr and
-        result = 0
       }
     #+END_SRC
 
