@@ -29,16 +29,20 @@ where
   // Same initializer variable
   bufferBase.(VariableAccess).getTarget() = bufInit and
   accessBase.(VariableAccess).getTarget() = accessInit and
-  bufInit = accessInit
-// +++
-// Identify questionable differences
-select buffer, bufferBase, bufferOffset, access, accessBase, accessOffset, bufInit, accessInit
+  bufInit = accessInit and
+  // +++
+  // Identify questionable differences
+  accessOffset >= bufferOffset
+select buffer, bufferBase, access, accessBase, bufInit, bufferOffset, accessInit, accessOffset
 
 /**
  * Extract base and offset from y = base+offset and y = base-offset.  For others, get y and 0.
  *
  * For cases like
  *     buf[alloc_size + 1];
+ *         ^^^^^^^^^^^^^^ expr
+ *         ^^^^^^^^^^ base
+ *                    ^^^ offset
  *
  * The more general
  *     buf[sz * x * y - 1];

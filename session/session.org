@@ -446,19 +446,6 @@ To address these, take the query from the previous exercise and
    - This only handles very specific cases.  Constructing counterexamples is easy.
    - We will address this in the next section.
 
-*** TODO incoporate
-    #+BEGIN_SRC java
-      predicate isOffsetOutOfBoundsConstant(
-        ArrayExpr access, FunctionCall source, int allocSize, int accessOffset
-      ) {
-        ensureSameFunction(access, source) and
-        // allocatedBufferArrayAccess(access, source) and
-        allocSize = getMaxStatedValue(source.getArgument(0)) and
-        accessOffset = getFixedArrayOffset(access) and
-        accessOffset >= allocSize
-      }
-    #+END_SRC
-    
 *** Solution:
     #+INCLUDE: "example8.ql" src java
 
@@ -482,9 +469,25 @@ To address these, take the query from the previous exercise and
    constants that flow to a given expression.  Another approach is global value
    numbering, used next.
 
+** Step 8a
+   Find problematic accesses by reverting to some /simple/ =var+const= checks using
+   =accessOffset= and =bufferOffset=.
+
+   Note:
+   - These will flag some false positives.
+   - The product expression =sz * x * y= is not easily checked for equality. 
+   These are addressed in the next step.
+
+*** Solution:
+    #+INCLUDE: "example8a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/example8a/example8a.expected" :lines "-6"’
+
 ** Step 9 -- Global Value Numbering
-   Range analyis won't bound =sz * x * y=, so switch to global value
-   numbering.
+   Range analyis won't bound =sz * x * y=, and simpl equality checks don't work at
+   the structure level, so switch to global value numbering.
+
    This is the case in the last test case, 
    #+begin_example
    void test_gvn_var(unsigned long x, unsigned long y, unsigned long sz)
@@ -523,15 +526,6 @@ To address these, take the query from the previous exercise and
    buf[sz * x * y - 1]; // COMPLIANT
    #+end_example
    we have to "evaluate" the expressions -- or at least bound them.
-
-*** DONE incorporate
-    Done by =ensureSameFunction= instead.
-    #+BEGIN_SRC java
-      predicate allocatedBufferArrayAccess(ArrayExpr access, FunctionCall alloc) {
-        alloc.getTarget().hasName("malloc") and
-        DataFlow::localExprFlow(alloc, access.getArrayBase())
-      }
-    #+END_SRC
 
 *** TODO incoporate
     #+BEGIN_SRC java
