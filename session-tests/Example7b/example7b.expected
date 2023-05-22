@@ -1,4 +1,4 @@
-WARNING: Unused predicate computeIndices (/Users/hohn/local/codeql-workshop-runtime-values-c/session/example7b.ql:65,11-25)
+WARNING: Unused predicate computeIndices (/Users/hohn/local/codeql-workshop-runtime-values-c/session/example7b.ql:66,11-25)
 | test.c:10:5:10:12 | access to array | Array access at or beyond size; have 100 units, access at 100 |
 | test.c:20:5:20:12 | access to array | Array access at or beyond size; have 100 units, access at 100 |
 | test.c:21:5:21:13 | access to array | Array access at or beyond size; have 100 units, access at 100 |

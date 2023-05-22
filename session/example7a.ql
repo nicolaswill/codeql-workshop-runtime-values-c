@@ -13,10 +13,11 @@ where
   //     ^^^  int accessIdx
   accessIdx = access.getArrayOffset() and
   getAllocConstantExpr(bufferSizeExpr, bufferSize) and
-  // Ensure alloc and buffer access are in the same function
-  ensureSameFunction(buffer, access.getArrayBase()) and
-  // Ensure size defintion and use are in same function, even for non-constant expressions.
-  ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr()) and
+  // Ensure buffer access is to the correct allocation.
+  DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+  // Ensure use refers to the correct size defintion, even for non-constant
+  // expressions.  
+  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
   //
   arrayTypeSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() and
   1 = allocBaseSize
@@ -26,9 +27,6 @@ select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as acces
   buffer.getSizeMult() as bufferBaseTypeSize,
   arrayBaseType.getSize() as arrayBaseTypeSize,
   allocBaseSize * bufferSize as allocatedUnits, arrayTypeSize * accessMax as maxAccessedIndex
-
-/** Ensure the two expressions are in the same function body. */
-predicate ensureSameFunction(Expr a, Expr b) { DataFlow::localExprFlow(a, b) }
 
 /**
  * Gets an expression that flows to the allocation (which includes those already in the allocation)

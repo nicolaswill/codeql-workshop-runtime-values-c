@@ -14,15 +14,14 @@ where
   //
   accessIdx = access.getArrayOffset().getValue().toInt() and
   getAllocConstantExpr(bufferSizeExpr, bufferSize) and
-  // Ensure alloc and buffer access are in the same function
-  ensureSameFunction(buffer, access.getArrayBase()) and
-  // Ensure size defintion and use are in same function, even for non-constant expressions.
-  ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr())
-//
+  // Ensure buffer access refers to the matching allocation
+  // ensureSameFunction(buffer, access.getArrayBase()) and
+  DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+  // Ensure buffer access refers to the matching allocation
+  // ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr()) and
+  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) 
+  //
 select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bufferSizeExpr
-
-/** Ensure the two expressions are in the same function body. */
-predicate ensureSameFunction(Expr a, Expr b) { DataFlow::localExprFlow(a, b) }
 
 /**
  * Gets an expression that flows to the allocation (which includes those already in the allocation)

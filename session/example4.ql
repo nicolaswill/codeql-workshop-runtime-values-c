@@ -29,7 +29,7 @@ where
     bufferSizeExpr.getValue().toInt() = bufferSize
     and bse = bufferSizeExpr
   ) and
-  // Ensure alloc and buffer access are in the same function 
+  // Ensure buffer access is to the correct allocation.
   // char *buf  = ... buf[0];
   //       ^^^  --->  ^^^
   // or

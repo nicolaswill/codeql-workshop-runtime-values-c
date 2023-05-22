@@ -9,10 +9,11 @@ where
   // malloc (100)
   // ^^^^^^^^^^^^ AllocationExpr buffer
   getAllocConstantExpr(bufferSizeExpr, bufferSize) and
-  // Ensure alloc and buffer access are in the same function
-  ensureSameFunction(buffer, access.getArrayBase()) and
-  // Ensure size defintion and use are in same function, even for non-constant expressions.
-  ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr()) and
+  // Ensure buffer access is to the correct allocation.
+  DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+  // Ensure use refers to the correct size defintion, even for non-constant
+  // expressions.  
+  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
   // computeIndices(access, buffer, bufferSize, allocatedUnits, maxAccessedIndex)
   computeAllocationSize(buffer, bufferSize, allocatedUnits) and
   computeMaxAccess(access, maxAccessedIndex)
@@ -82,9 +83,6 @@ predicate computeIndices(
     arrayTypeSize * accessMax = maxAccessedIndex
   )
 }
-
-/** Ensure the two expressions are in the same function body. */
-predicate ensureSameFunction(Expr a, Expr b) { DataFlow::localExprFlow(a, b) }
 
 /**
  * Gets an expression that flows to the allocation (which includes those already in the allocation)
