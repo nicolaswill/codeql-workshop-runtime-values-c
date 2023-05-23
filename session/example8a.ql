@@ -18,7 +18,7 @@ where
   bufferSizeExpr = buffer.getSizeExpr() and
   // Ensure buffer access refers to the matching allocation
   DataFlow::localExprFlow(buffer, access.getArrayBase()) and
-  // Ensure buffer access refers to the matching allocation
+  // Find allocation size expression flowing to buffer.
   DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
   //
   // +++

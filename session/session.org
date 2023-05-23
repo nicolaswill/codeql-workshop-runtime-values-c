@@ -372,7 +372,7 @@ To address these, take the query from the previous exercise and
       2. Calculate the =allocSize= / =allocatedUnits= (from the malloc)
       3. Compare them
 
-*** Solution:
+*** Solution
     #+INCLUDE: "example7.ql" src java
 
 *** First 5 results
@@ -382,7 +382,7 @@ To address these, take the query from the previous exercise and
    1. Account for base sizes -- =char= in this case.
    2. Put all expressions into the select for review.
 
-*** Solution:
+*** Solution
     #+INCLUDE: "example7a.ql" src java
 
 *** First 5 results
@@ -393,7 +393,7 @@ To address these, take the query from the previous exercise and
    2. Compare buffer allocation size to the access index.
    3. Report only the questionable entries.
 
-*** Solution:
+*** Solution
     #+INCLUDE: "example7b.ql" src java
 
 *** First 5 results
@@ -446,7 +446,7 @@ To address these, take the query from the previous exercise and
    - This only handles very specific cases.  Constructing counterexamples is easy.
    - We will address this in the next section.
 
-*** Solution:
+*** Solution
     #+INCLUDE: "example8.ql" src java
 
 *** First 5 results
@@ -478,15 +478,15 @@ To address these, take the query from the previous exercise and
    - The product expression =sz * x * y= is not easily checked for equality. 
    These are addressed in the next step.
 
-*** Solution:
+*** Solution
     #+INCLUDE: "example8a.ql" src java
 
 *** First 5 results
     #+INCLUDE: "../session-tests/example8a/example8a.expected" :lines "-6"’
 
 ** Step 9 -- Global Value Numbering
-   Range analyis won't bound =sz * x * y=, and simpl equality checks don't work at
-   the structure level, so switch to global value numbering.
+   Range analyis won't bound =sz * x * y=, and simple equality checks don't work
+   at the structure level, so switch to global value numbering.
 
    This is the case in the last test case, 
    #+begin_example
@@ -527,122 +527,21 @@ To address these, take the query from the previous exercise and
    #+end_example
    we have to "evaluate" the expressions -- or at least bound them.
 
-*** TODO incoporate
-    #+BEGIN_SRC java
-      int getFixedArrayOffset(ArrayExpr access) {
-        exists(Expr base, int offset |
-          offset = getExprOffsetValue(access.getArrayOffset(), base) and
-          result = getMaxStatedValue(base) + offset
-        )
-      }
-    #+END_SRC
+   XX:
+   For the cases with variable =malloc= sizes, like =test_const_branch=, GVN
+   identifies same-value constant accesses, but we need a special case for
+   same-value expression accesses.
 
-*** TODO incoporate
-    #+BEGIN_SRC java
-      predicate isOffsetOutOfBoundsGVN(ArrayExpr access, FunctionCall source) {
-        ensureSameFunction(access, source) and
-        not isOffsetOutOfBoundsConstant(access, source, _, _) and
-        exists(Expr accessOffsetBase, int accessOffsetBaseValue |
-          accessOffsetBaseValue = getExprOffsetValue(access.getArrayOffset(), accessOffsetBase) and
-          globalValueNumber(source.getArgument(0)) = globalValueNumber(accessOffsetBase) and
-          not accessOffsetBaseValue < 0
-        )
-      }
-    #+END_SRC
-
-*** TODO incoporate
-    #+BEGIN_SRC java
-      /**
-       ,* @id cpp/array-access-out-of-bounds
-       ,* @description Access of an array with an index that is greater or equal to the element num.
-       ,* @kind problem
-       ,* @problem.severity error
-       ,*/
-
-      import cpp
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
-      import RuntimeValues
-
-      from FunctionCall source, ArrayExpr access, string message
-      where
-        exists(int allocSize, int accessOffset |
-          isOffsetOutOfBoundsConstant(access, source, allocSize, accessOffset) and
-          message =
-            "Array access out of bounds: " + access.toString() + " with offset " + accessOffset.toString()
-              + " on $@ with size " + allocSize.toString()
-        )
-        or
-        isOffsetOutOfBoundsGVN(access, source) and
-        message = "Array access with index that is greater or equal to the size of the $@."
-      select access, message, source, "allocation"
-    #+END_SRC
-
-*** interim
-    #+BEGIN_SRC java
-      /**
-       ,* @ kind problem
-       ,*/
-
-      import cpp
-      import semmle.code.cpp.dataflow.DataFlow
-      import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
-      import semmle.code.cpp.valuenumbering.GlobalValueNumbering
-
-      // Step 9
-      from
-        AllocationExpr buffer, ArrayExpr access, Expr accessIdx, Expr allocSizeExpr, int bufferSize,
-        int allocsize, Expr bufferSizeExpr, int arrayTypeSize, int allocBaseSize, int accessMax,
-        int allocatedUnits, int maxAccessedIndex
-      where
-        // malloc (100)
-        // ^^^^^^^^^^^^ AllocationExpr buffer
-        //
-        // buf[...]
-        // ^^^  ArrayExpr access
-        // buf[...]
-        //     ^^^  int accessIdx
-        accessIdx = access.getArrayOffset() and
-        //
-        // malloc (100)
-        //         ^^^ allocSizeExpr / bufferSize
-        //
-        // Not really:
-        //   allocSizeExpr = buffer.(Call).getArgument(0) and
-        //
-        DataFlow::localExprFlow(allocSizeExpr, buffer.(Call).getArgument(0)) and
-        allocsize = allocSizeExpr.getValue().toInt() and
-        //
-        // unsigned long size = 100;
-        // ...
-        // char *buf = malloc(size);
-        DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
-        bufferSizeExpr.getValue().toInt() = bufferSize and
-        // char *buf  = ... buf[0];
-        //       ^^^  --->  ^^^
-        // or
-        // malloc(100);   buf[0]
-        // ^^^  --------> ^^^
-        //
-        arrayTypeSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() and
-        1 = allocBaseSize and
-        DataFlow::localExprFlow(buffer, access.getArrayBase()) and
-        upperBound(accessIdx) = accessMax and
-        allocBaseSize * allocsize = allocatedUnits and
-        arrayTypeSize * accessMax = maxAccessedIndex and
-        // only consider out-of-bounds
-        maxAccessedIndex >= allocatedUnits
-      select access,
-        "Array access at or beyond size; have " + allocatedUnits + " units, access at " + maxAccessedIndex,
-        globalValueNumber(accessIdx) as gvnAccess, globalValueNumber(allocSizeExpr) as gvnAlloc
-    #+END_SRC
-
-*** interim
-    Messy, start over.
-
+*** Solution
     #+INCLUDE: "example9.ql" src java
-    
+
+*** First 5 results
+    Results note:
+    - The allocation size of 200 is never used in an access, so the GVN match
+      eliminates it from the result list.
+
+     #+INCLUDE: "../session-tests/Example9/example9.expected" :lines "-6"’
+
 ** TODO hashconsing
 import semmle.code.cpp.valuenumbering.HashCons
 
