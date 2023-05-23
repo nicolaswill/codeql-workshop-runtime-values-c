@@ -6,53 +6,54 @@
 3.  [Setup Instructions](#setup-instructions)
 4.  [Introduction](#introduction)
 5.  [A Note on the Scope of This Workshop](#a-note-on-the-scope-of-this-workshop)
-6.  [Session/Workshop notes](#sessionworkshop-notes)
+6.  [A short note on the structure of directories and their use](#org28d73fb)
+7.  [Session/Workshop notes](#sessionworkshop-notes)
     1.  [Step 1](#exercise-1)
         1.  [Hints](#hints)
-        2.  [Solution](#orgfe07e83)
-        3.  [First 5 results](#org9bdf3d9)
-    2.  [Step 2](#org97296bf)
+        2.  [Solution](#org4777775)
+        3.  [First 5 results](#org1aa6a22)
+    2.  [Step 2](#org1e52aa7)
         1.  [Hints](#hints)
-        2.  [Solution](#orgd06b765)
-        3.  [First 5 results](#org4ffae11)
+        2.  [Solution](#org4ba1960)
+        3.  [First 5 results](#org61872ef)
     3.  [Step 3](#exercise-2)
-        1.  [Solution](#org397729b)
-        2.  [First 5 results](#org9284977)
-    4.  [Step 4](#orgd659e86)
-        1.  [Hint](#org96b6cb3)
-        2.  [Solution](#org5fd27f0)
-        3.  [First 5 results](#org56c584d)
-    5.  [Step 4a &#x2013; some clean-up using predicates](#org20718dc)
-        1.  [Solution](#orgaeb3205)
-        2.  [First 5 results](#org495cd47)
-    6.  [Step 5 &#x2013; SimpleRangeAnalysis](#orgc3291f5)
-        1.  [Solution](#org8dfe690)
-        2.  [First 5 results](#orgf8f1a57)
-    7.  [Step 6](#orgeb37f69)
-        1.  [Solution](#org4018377)
-        2.  [First 5 results](#org009c83c)
-    8.  [Step 7](#orgf560236)
-        1.  [Solution](#org5c57a12)
-        2.  [First 5 results](#orgd6ee067)
-    9.  [Step 7a](#orge525014)
-        1.  [Solution](#org3c1aead)
-        2.  [First 5 results](#org0cc7e07)
-    10. [Step 7b](#org2e90c28)
-        1.  [Solution](#org258a9eb)
-        2.  [First 5 results](#org53850c2)
-    11. [Step 8](#org3478261)
-        1.  [Solution](#org3f5fce2)
-        2.  [First 5 results](#org0473a24)
-    12. [Interim notes](#org1665440)
-    13. [Step 8a](#org7fde7a9)
-        1.  [Solution](#org5b44900)
-        2.  [First 5 results](#orgec9f223)
-    14. [Step 9 &#x2013; Global Value Numbering](#org5178301)
-        1.  [Solution](#org9889f6d)
-        2.  [First 5 results](#org6d67c9e)
-    15. [Step 9a &#x2013; hashconsing](#org601da34)
-        1.  [Solution](#orgb08a8c8)
-        2.  [First 5 results](#org4566318)
+        1.  [Solution](#orgffef32c)
+        2.  [First 5 results](#orga647c8f)
+    4.  [Step 4](#orgd616664)
+        1.  [Hint](#orga9ca0e1)
+        2.  [Solution](#org072f835)
+        3.  [First 5 results](#orgab7f021)
+    5.  [Step 4a &#x2013; some clean-up using predicates](#org74d9df9)
+        1.  [Solution](#orgd5a3519)
+        2.  [First 5 results](#orga608103)
+    6.  [Step 5 &#x2013; SimpleRangeAnalysis](#org426ad70)
+        1.  [Solution](#org7c6288c)
+        2.  [First 5 results](#org338b606)
+    7.  [Step 6](#orgca8ff14)
+        1.  [Solution](#orgb24ef12)
+        2.  [First 5 results](#orgc3c6c20)
+    8.  [Step 7](#orgeb7c62d)
+        1.  [Solution](#org8b2cfc4)
+        2.  [First 5 results](#orgdf5441f)
+    9.  [Step 7a](#org980fc9e)
+        1.  [Solution](#org7a58133)
+        2.  [First 5 results](#org4d2ccdb)
+    10. [Step 7b](#orgf204614)
+        1.  [Solution](#orgb536ad8)
+        2.  [First 5 results](#org91089f0)
+    11. [Step 8](#orgf9da811)
+        1.  [Solution](#org4d950d1)
+        2.  [First 5 results](#org012e64b)
+    12. [Interim notes](#orgd8277fd)
+    13. [Step 8a](#orgdf6dd57)
+        1.  [Solution](#org2cbb86e)
+        2.  [First 5 results](#org0c626de)
+    14. [Step 9 &#x2013; Global Value Numbering](#org8474dff)
+        1.  [Solution](#orga7fc0bc)
+        2.  [First 5 results](#orgb436331)
+    15. [Step 9a &#x2013; hashconsing](#orgc768b64)
+        1.  [Solution](#org370d1e6)
+        2.  [First 5 results](#orgced1d9e)
 
 
 <a id="codeql-workshop--using-data-flow-and-range-analysis-to-find-out-of-bounds-accesses"></a>
@@ -179,6 +180,20 @@ library](https://github.com/github/codeql-coding-standards/blob/main/c/common/sr
 Standards repository](https://github.com/github/codeql-coding-standards).
 
 
+<a id="org28d73fb"></a>
+
+# A short note on the structure of directories and their use
+
+`exercises-tests` are identical to `solution-tests`, the `exercises` directories
+are a convenience for developing the queries on your own so you can use the unit
+tests as reference.  This is for full consistency with the workshop material &#x2013;
+the session &#x2013; but you may veer off and experiment on your own.
+
+In that case, a simpler option is to follow the session writeup using a single
+`.ql` file; the writeup has full queries and (at most) the first 5 results for
+reference.
+
+
 <a id="sessionworkshop-notes"></a>
 
 # Session/Workshop notes
@@ -211,9 +226,9 @@ To find these issues,
 3.  We further extend these queries with rudimentary arithmetic support involving
     expressions common to the allocation and the array access.
 4.  For cases where constant expressions are not available or are uncertain, we
-    first try [range analysis](#orgc3291f5) to expand the query's applicability.
+    first try [range analysis](#org426ad70) to expand the query's applicability.
 5.  For cases where this is insufficient, we introduce global value numbering
-    [GVN](https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering) in [Step 9 &#x2013; Global Value Numbering](#org5178301), to detect values known to be equal
+    [GVN](https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering) in [Step 9 &#x2013; Global Value Numbering](#org8474dff), to detect values known to be equal
     at runtime.
 6.  When *those* cases are insufficient, we handle the case of identical
     structure using [BROKEN LINK: \*hashconsing].
@@ -251,7 +266,7 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
     constant expression.
 
 
-<a id="orgfe07e83"></a>
+<a id="org4777775"></a>
 
 ### Solution
 
@@ -279,7 +294,7 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
 
 
-<a id="org9bdf3d9"></a>
+<a id="org1aa6a22"></a>
 
 ### First 5 results
 
@@ -380,7 +395,7 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
 </table>
 
 
-<a id="org97296bf"></a>
+<a id="org1e52aa7"></a>
 
 ## Step 2
 
@@ -404,7 +419,7 @@ To address these, take the query from the previous exercise and
     `Expr.getArrayBase()` predicate.
 
 
-<a id="orgd06b765"></a>
+<a id="org4ba1960"></a>
 
 ### Solution
 
@@ -444,7 +459,7 @@ To address these, take the query from the previous exercise and
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
 
 
-<a id="org4ffae11"></a>
+<a id="org61872ef"></a>
 
 ### First 5 results
 
@@ -536,7 +551,7 @@ Here, the `malloc` argument is a variable with known value.
 We include this result by removing the size-retrieval from the prior query.
 
 
-<a id="org397729b"></a>
+<a id="orgffef32c"></a>
 
 ### Solution
 
@@ -575,7 +590,7 @@ We include this result by removing the size-retrieval from the prior query.
     select buffer, access, accessIdx, access.getArrayOffset()
 
 
-<a id="org9284977"></a>
+<a id="orga647c8f"></a>
 
 ### First 5 results
 
@@ -655,7 +670,7 @@ We include this result by removing the size-retrieval from the prior query.
 </table>
 
 
-<a id="orgd659e86"></a>
+<a id="orgd616664"></a>
 
 ## Step 4
 
@@ -671,12 +686,12 @@ access rather than a constant. The next goal is
 We have an expression `size` that flows into the `malloc()` call.
 
 
-<a id="org96b6cb3"></a>
+<a id="orga9ca0e1"></a>
 
 ### Hint
 
 
-<a id="org5fd27f0"></a>
+<a id="org072f835"></a>
 
 ### Solution
 
@@ -722,7 +737,7 @@ We have an expression `size` that flows into the `malloc()` call.
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bse
 
 
-<a id="org56c584d"></a>
+<a id="orgab7f021"></a>
 
 ### First 5 results
 
@@ -823,7 +838,7 @@ We have an expression `size` that flows into the `malloc()` call.
 </table>
 
 
-<a id="org20718dc"></a>
+<a id="org74d9df9"></a>
 
 ## Step 4a &#x2013; some clean-up using predicates
 
@@ -849,7 +864,7 @@ Also, simplify the `from...where...select`:
     `getValue().toInt()` as one possibility (one predicate).
 
 
-<a id="orgaeb3205"></a>
+<a id="orgd5a3519"></a>
 
 ### Solution
 
@@ -900,7 +915,7 @@ Also, simplify the `from...where...select`:
     }
 
 
-<a id="org495cd47"></a>
+<a id="orga608103"></a>
 
 ### First 5 results
 
@@ -1001,7 +1016,7 @@ Also, simplify the `from...where...select`:
 </table>
 
 
-<a id="orgc3291f5"></a>
+<a id="org426ad70"></a>
 
 ## Step 5 &#x2013; SimpleRangeAnalysis
 
@@ -1042,7 +1057,7 @@ Notes:
         select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax
 
 
-<a id="org8dfe690"></a>
+<a id="org7c6288c"></a>
 
 ### Solution
 
@@ -1098,7 +1113,7 @@ Notes:
     }
 
 
-<a id="orgf8f1a57"></a>
+<a id="org338b606"></a>
 
 ### First 5 results
 
@@ -1192,7 +1207,7 @@ Notes:
 </table>
 
 
-<a id="orgeb37f69"></a>
+<a id="orgca8ff14"></a>
 
 ## Step 6
 
@@ -1223,7 +1238,7 @@ Hints:
     `double`?
 
 
-<a id="org4018377"></a>
+<a id="orgb24ef12"></a>
 
 ### Solution
 
@@ -1281,7 +1296,7 @@ Hints:
     }
 
 
-<a id="org009c83c"></a>
+<a id="orgc3c6c20"></a>
 
 ### First 5 results
 
@@ -1410,7 +1425,7 @@ Hints:
 </table>
 
 
-<a id="orgf560236"></a>
+<a id="orgeb7c62d"></a>
 
 ## Step 7
 
@@ -1423,7 +1438,7 @@ Hints:
     3.  Compare them
 
 
-<a id="org5c57a12"></a>
+<a id="org8b2cfc4"></a>
 
 ### Solution
 
@@ -1478,7 +1493,7 @@ Hints:
     }
 
 
-<a id="orgd6ee067"></a>
+<a id="orgdf5441f"></a>
 
 ### First 5 results
 
@@ -1607,7 +1622,7 @@ Hints:
 </table>
 
 
-<a id="orge525014"></a>
+<a id="org980fc9e"></a>
 
 ## Step 7a
 
@@ -1615,7 +1630,7 @@ Hints:
 2.  Put all expressions into the select for review.
 
 
-<a id="org3c1aead"></a>
+<a id="org7a58133"></a>
 
 ### Solution
 
@@ -1667,7 +1682,7 @@ Hints:
     }
 
 
-<a id="org0cc7e07"></a>
+<a id="org4d2ccdb"></a>
 
 ### First 5 results
 
@@ -1810,7 +1825,7 @@ Hints:
 </table>
 
 
-<a id="org2e90c28"></a>
+<a id="orgf204614"></a>
 
 ## Step 7b
 
@@ -1819,7 +1834,7 @@ Hints:
 3.  Report only the questionable entries.
 
 
-<a id="org258a9eb"></a>
+<a id="orgb536ad8"></a>
 
 ### Solution
 
@@ -1925,7 +1940,7 @@ Hints:
     }
 
 
-<a id="org53850c2"></a>
+<a id="org91089f0"></a>
 
 ### First 5 results
 
@@ -1972,7 +1987,7 @@ WARNING: Unused predicate computeIndices (/Users/hohn/local/codeql-workshop-runt
 </table>
 
 
-<a id="org3478261"></a>
+<a id="orgf9da811"></a>
 
 ## Step 8
 
@@ -2023,7 +2038,7 @@ Note:
 -   We will address this in the next section.
 
 
-<a id="org3f5fce2"></a>
+<a id="org4d950d1"></a>
 
 ### Solution
 
@@ -2088,7 +2103,7 @@ Note:
     }
 
 
-<a id="org0473a24"></a>
+<a id="org012e64b"></a>
 
 ### First 5 results
 
@@ -2217,7 +2232,7 @@ Note:
 </table>
 
 
-<a id="org1665440"></a>
+<a id="orgd8277fd"></a>
 
 ## Interim notes
 
@@ -2236,7 +2251,7 @@ constants that flow to a given expression.  Another approach is global value
 numbering, used next.
 
 
-<a id="org7fde7a9"></a>
+<a id="orgdf6dd57"></a>
 
 ## Step 8a
 
@@ -2251,7 +2266,7 @@ Note:
 These are addressed in the next step.
 
 
-<a id="org5b44900"></a>
+<a id="org2cbb86e"></a>
 
 ### Solution
 
@@ -2320,7 +2335,7 @@ These are addressed in the next step.
     }
 
 
-<a id="orgec9f223"></a>
+<a id="org0c626de"></a>
 
 ### First 5 results
 
@@ -2449,7 +2464,7 @@ These are addressed in the next step.
 </table>
 
 
-<a id="org5178301"></a>
+<a id="org8474dff"></a>
 
 ## Step 9 &#x2013; Global Value Numbering
 
@@ -2491,7 +2506,7 @@ for expressions like
 we have to "evaluate" the expressions &#x2013; or at least bound them.
 
 
-<a id="org9889f6d"></a>
+<a id="orga7fc0bc"></a>
 
 ### Solution
 
@@ -2538,7 +2553,7 @@ we have to "evaluate" the expressions &#x2013; or at least bound them.
       accessIdx, accessOffset
 
 
-<a id="org6d67c9e"></a>
+<a id="orgb436331"></a>
 
 ### First 5 results
 
@@ -2665,7 +2680,7 @@ Results note:
     </table>
 
 
-<a id="org601da34"></a>
+<a id="orgc768b64"></a>
 
 ## Step 9a &#x2013; hashconsing
 
@@ -2706,7 +2721,7 @@ is plain `=`, GVN, and `hashCons`:
     )
 
 
-<a id="orgb08a8c8"></a>
+<a id="org370d1e6"></a>
 
 ### Solution
 
@@ -2776,7 +2791,7 @@ is plain `=`, GVN, and `hashCons`:
       accessOffset
 
 
-<a id="org4566318"></a>
+<a id="orgced1d9e"></a>
 
 ### First 5 results
 

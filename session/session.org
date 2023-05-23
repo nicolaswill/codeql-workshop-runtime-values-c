@@ -106,26 +106,37 @@ results in an access beyond the allocated size of the buffer.
   :PROPERTIES:
   :CUSTOM_ID: a-note-on-the-scope-of-this-workshop
   :END:
-This workshop is not intended to be a complete analysis that is useful
-for real-world cases of out-of-bounds analyses for reasons including but
-not limited to:
+  This workshop is not intended to be a complete analysis that is useful
+  for real-world cases of out-of-bounds analyses for reasons including but
+  not limited to:
 
-- Missing support for loops and recursion
-- No interprocedural analysis
-- Missing size calculation of arrays where the element size is not 1
-- No support for pointer arithmetic or in general, operations other than
-  addition and subtraction
-- Overly specific modelling of a buffer access as an array expression
+  - Missing support for loops and recursion
+  - No interprocedural analysis
+  - Missing size calculation of arrays where the element size is not 1
+  - No support for pointer arithmetic or in general, operations other than
+    addition and subtraction
+  - Overly specific modelling of a buffer access as an array expression
 
-The goal of this workshop is rather to demonstrate the building blocks
-of analyzing run-time values and how to apply those building blocks to
-modelling a common class of vulnerability. A more comprehensive and
-production-appropriate example is the
-[[https://github.com/github/codeql-coding-standards/blob/main/c/common/src/codingstandards/c/OutOfBounds.qll][OutOfBounds.qll
-library]] from the
-[[https://github.com/github/codeql-coding-standards][CodeQL Coding
-Standards repository]].
+  The goal of this workshop is rather to demonstrate the building blocks
+  of analyzing run-time values and how to apply those building blocks to
+  modelling a common class of vulnerability. A more comprehensive and
+  production-appropriate example is the
+  [[https://github.com/github/codeql-coding-standards/blob/main/c/common/src/codingstandards/c/OutOfBounds.qll][OutOfBounds.qll
+  library]] from the
+  [[https://github.com/github/codeql-coding-standards][CodeQL Coding
+  Standards repository]].
 
+* A short note on the structure of directories and their use
+
+  =exercises-tests= are identical to =solution-tests=, the =exercises= directories
+  are a convenience for developing the queries on your own so you can use the unit
+  tests as reference.  This is for full consistency with the workshop material --
+  the session -- but you may veer off and experiment on your own.
+
+  In that case, a simpler option is to follow the session writeup using a single
+  =.ql= file; the writeup has full queries and (at most) the first 5 results for
+  reference.
+ 
 * Session/Workshop notes
   :PROPERTIES:
   :CUSTOM_ID: sessionworkshop-notes
