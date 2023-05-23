@@ -9,46 +9,50 @@
 6.  [Session/Workshop notes](#sessionworkshop-notes)
     1.  [Step 1](#exercise-1)
         1.  [Hints](#hints)
-        2.  [Solution](#org14d20ad)
-    2.  [Step 2](#org6996134)
+        2.  [Solution](#orgfe07e83)
+        3.  [First 5 results](#org9bdf3d9)
+    2.  [Step 2](#org97296bf)
         1.  [Hints](#hints)
-        2.  [Solution](#orge54f273)
-        3.  [Results](#org7721736)
+        2.  [Solution](#orgd06b765)
+        3.  [First 5 results](#org4ffae11)
     3.  [Step 3](#exercise-2)
-        1.  [Solution](#org77a77b4)
-        2.  [Results](#org14b2eb8)
-    4.  [Step 4](#org70ec45b)
-        1.  [Hint](#org952151f)
-        2.  [Solution](#org443dc33)
-        3.  [Results](#org9eba298)
-    5.  [Step 4a &#x2013; some clean-up using predicates](#orga1b1648)
-        1.  [Solution](#orgf6ab8fd)
-    6.  [Step 5 &#x2013; SimpleRangeAnalysis](#orga0ae19d)
-        1.  [Solution](#org38203d6)
-        2.  [First 5 results](#org8d0b049)
-    7.  [Step 6](#org2e181e8)
-        1.  [Solution](#org7ff86a4)
-        2.  [First 5 results](#org35eb492)
-    8.  [Step 7](#orgbaba437)
-        1.  [Solution](#org2558217)
-        2.  [First 5 results](#org319c753)
-    9.  [Step 7a](#org5c3cbb9)
-        1.  [Solution](#org631c47f)
-        2.  [First 5 results](#orgdcbb8ea)
-    10. [Step 7b](#org9b279f6)
-        1.  [Solution](#org54470ce)
-        2.  [First 5 results](#orga2d47ca)
-    11. [Step 8](#orgbe1a4ba)
-        1.  [Solution](#org966c6c5)
-        2.  [First 5 results](#org9c29a8e)
-    12. [Interim notes](#org39ee1c0)
-    13. [Step 8a](#org477a7f7)
-        1.  [Solution](#orgf806ffb)
-        2.  [First 5 results](#org18e8bda)
-    14. [Step 9 &#x2013; Global Value Numbering](#org5b5e629)
-        1.  [Solution](#orgc717ad3)
-        2.  [First 5 results](#orgf97dbbc)
-    15. [hashconsing](#orgc221436)
+        1.  [Solution](#org397729b)
+        2.  [First 5 results](#org9284977)
+    4.  [Step 4](#orgd659e86)
+        1.  [Hint](#org96b6cb3)
+        2.  [Solution](#org5fd27f0)
+        3.  [First 5 results](#org56c584d)
+    5.  [Step 4a &#x2013; some clean-up using predicates](#org20718dc)
+        1.  [Solution](#orgaeb3205)
+        2.  [First 5 results](#org495cd47)
+    6.  [Step 5 &#x2013; SimpleRangeAnalysis](#orgc3291f5)
+        1.  [Solution](#org8dfe690)
+        2.  [First 5 results](#orgf8f1a57)
+    7.  [Step 6](#orgeb37f69)
+        1.  [Solution](#org4018377)
+        2.  [First 5 results](#org009c83c)
+    8.  [Step 7](#orgf560236)
+        1.  [Solution](#org5c57a12)
+        2.  [First 5 results](#orgd6ee067)
+    9.  [Step 7a](#orge525014)
+        1.  [Solution](#org3c1aead)
+        2.  [First 5 results](#org0cc7e07)
+    10. [Step 7b](#org2e90c28)
+        1.  [Solution](#org258a9eb)
+        2.  [First 5 results](#org53850c2)
+    11. [Step 8](#org3478261)
+        1.  [Solution](#org3f5fce2)
+        2.  [First 5 results](#org0473a24)
+    12. [Interim notes](#org1665440)
+    13. [Step 8a](#org7fde7a9)
+        1.  [Solution](#org5b44900)
+        2.  [First 5 results](#orgec9f223)
+    14. [Step 9 &#x2013; Global Value Numbering](#org5178301)
+        1.  [Solution](#org9889f6d)
+        2.  [First 5 results](#org6d67c9e)
+    15. [Step 9a &#x2013; hashconsing](#org601da34)
+        1.  [Solution](#orgb08a8c8)
+        2.  [First 5 results](#org4566318)
 
 
 <a id="codeql-workshop--using-data-flow-and-range-analysis-to-find-out-of-bounds-accesses"></a>
@@ -207,12 +211,12 @@ To find these issues,
 3.  We further extend these queries with rudimentary arithmetic support involving
     expressions common to the allocation and the array access.
 4.  For cases where constant expressions are not available or are uncertain, we
-    first try [range analysis](#orga0ae19d) to expand the query's applicability.
+    first try [range analysis](#orgc3291f5) to expand the query's applicability.
 5.  For cases where this is insufficient, we introduce global value numbering
-    [GVN](https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering) in [Step 9 &#x2013; Global Value Numbering](#org5b5e629), to detect values known to be equal
+    [GVN](https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering) in [Step 9 &#x2013; Global Value Numbering](#org5178301), to detect values known to be equal
     at runtime.
 6.  When *those* cases are insufficient, we handle the case of identical
-    structure using [hashconsing](#orgc221436).
+    structure using [BROKEN LINK: \*hashconsing].
 
 
 <a id="exercise-1"></a>
@@ -247,7 +251,7 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
     constant expression.
 
 
-<a id="org14d20ad"></a>
+<a id="orgfe07e83"></a>
 
 ### Solution
 
@@ -274,10 +278,109 @@ in [db.c](file:///Users/hohn/local/codeql-workshop-runtime-values-c/session-db/D
       bufferSize = allocSizeExpr.getValue().toInt()
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
 
-This produces 12 results, with some cross-function pairs.
+
+<a id="org9bdf3d9"></a>
+
+### First 5 results
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
-<a id="org6996134"></a>
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:8:5:8:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:8:9:8:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:9:5:9:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:9:9:9:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:10:5:10:12</td>
+<td class="org-left">access to array</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:10:9:10:11</td>
+<td class="org-right">100</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:17:5:17:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:17:9:17:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:18:5:18:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:18:9:18:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+</tbody>
+</table>
+
+
+<a id="org97296bf"></a>
 
 ## Step 2
 
@@ -301,7 +404,7 @@ To address these, take the query from the previous exercise and
     `Expr.getArrayBase()` predicate.
 
 
-<a id="orge54f273"></a>
+<a id="orgd06b765"></a>
 
 ### Solution
 
@@ -341,11 +444,77 @@ To address these, take the query from the previous exercise and
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, allocSizeExpr
 
 
-<a id="org7721736"></a>
+<a id="org4ffae11"></a>
 
-### Results
+### First 5 results
 
-There are now 3 results.  These are from only one function, the one using constants.
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:8:5:8:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:8:9:8:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:9:5:9:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:9:9:9:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:10:5:10:12</td>
+<td class="org-left">access to array</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:10:9:10:11</td>
+<td class="org-right">100</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+</tbody>
+</table>
 
 
 <a id="exercise-2"></a>
@@ -367,7 +536,7 @@ Here, the `malloc` argument is a variable with known value.
 We include this result by removing the size-retrieval from the prior query.
 
 
-<a id="org77a77b4"></a>
+<a id="org397729b"></a>
 
 ### Solution
 
@@ -406,14 +575,87 @@ We include this result by removing the size-retrieval from the prior query.
     select buffer, access, accessIdx, access.getArrayOffset()
 
 
-<a id="org14b2eb8"></a>
+<a id="org9284977"></a>
 
-### Results
+### First 5 results
 
-Now, we get 12 results, including some from other test cases.
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
-<a id="org70ec45b"></a>
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:8:5:8:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:8:9:8:9</td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:9:5:9:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:9:9:9:10</td>
+<td class="org-right">99</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:10:5:10:12</td>
+<td class="org-left">access to array</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:10:9:10:11</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:17:5:17:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:17:9:17:9</td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:18:5:18:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:18:9:18:10</td>
+<td class="org-right">99</td>
+</tr>
+</tbody>
+</table>
+
+
+<a id="orgd659e86"></a>
 
 ## Step 4
 
@@ -429,12 +671,12 @@ access rather than a constant. The next goal is
 We have an expression `size` that flows into the `malloc()` call.
 
 
-<a id="org952151f"></a>
+<a id="org96b6cb3"></a>
 
 ### Hint
 
 
-<a id="org443dc33"></a>
+<a id="org5fd27f0"></a>
 
 ### Solution
 
@@ -480,14 +722,108 @@ We have an expression `size` that flows into the `malloc()` call.
     select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bse
 
 
-<a id="org9eba298"></a>
+<a id="org56c584d"></a>
 
-### Results
+### First 5 results
 
-Now, we get 15 results, limited to statically determined values.
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
-<a id="orga1b1648"></a>
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:8:5:8:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:8:9:8:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:9:5:9:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:9:9:9:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:10:5:10:12</td>
+<td class="org-left">access to array</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:10:9:10:11</td>
+<td class="org-right">100</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:17:5:17:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:17:9:17:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:18:5:18:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:18:9:18:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-right">100</td>
+</tr>
+</tbody>
+</table>
+
+
+<a id="org20718dc"></a>
 
 ## Step 4a &#x2013; some clean-up using predicates
 
@@ -513,7 +849,7 @@ Also, simplify the `from...where...select`:
     `getValue().toInt()` as one possibility (one predicate).
 
 
-<a id="orgf6ab8fd"></a>
+<a id="orgaeb3205"></a>
 
 ### Solution
 
@@ -564,7 +900,108 @@ Also, simplify the `from...where...select`:
     }
 
 
-<a id="orga0ae19d"></a>
+<a id="org495cd47"></a>
+
+### First 5 results
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:8:5:8:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:8:9:8:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:9:5:9:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:9:9:9:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:7:17:7:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:10:5:10:12</td>
+<td class="org-left">access to array</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:10:9:10:11</td>
+<td class="org-right">100</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:7:24:7:26</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:17:5:17:10</td>
+<td class="org-left">access to array</td>
+<td class="org-right">0</td>
+<td class="org-left">test.c:17:9:17:9</td>
+<td class="org-right">0</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-right">100</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:16:17:16:22</td>
+<td class="org-left">call to malloc</td>
+<td class="org-left">test.c:18:5:18:11</td>
+<td class="org-left">access to array</td>
+<td class="org-right">99</td>
+<td class="org-left">test.c:18:9:18:10</td>
+<td class="org-right">99</td>
+<td class="org-right">100</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-right">100</td>
+</tr>
+</tbody>
+</table>
+
+
+<a id="orgc3291f5"></a>
 
 ## Step 5 &#x2013; SimpleRangeAnalysis
 
@@ -605,7 +1042,7 @@ Notes:
         select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax
 
 
-<a id="org38203d6"></a>
+<a id="org8dfe690"></a>
 
 ### Solution
 
@@ -661,7 +1098,7 @@ Notes:
     }
 
 
-<a id="org8d0b049"></a>
+<a id="orgf8f1a57"></a>
 
 ### First 5 results
 
@@ -755,7 +1192,7 @@ Notes:
 </table>
 
 
-<a id="org2e181e8"></a>
+<a id="orgeb37f69"></a>
 
 ## Step 6
 
@@ -786,7 +1223,7 @@ Hints:
     `double`?
 
 
-<a id="org7ff86a4"></a>
+<a id="org4018377"></a>
 
 ### Solution
 
@@ -844,7 +1281,7 @@ Hints:
     }
 
 
-<a id="org35eb492"></a>
+<a id="org009c83c"></a>
 
 ### First 5 results
 
@@ -973,7 +1410,7 @@ Hints:
 </table>
 
 
-<a id="orgbaba437"></a>
+<a id="orgf560236"></a>
 
 ## Step 7
 
@@ -986,7 +1423,7 @@ Hints:
     3.  Compare them
 
 
-<a id="org2558217"></a>
+<a id="org5c57a12"></a>
 
 ### Solution
 
@@ -1041,7 +1478,7 @@ Hints:
     }
 
 
-<a id="org319c753"></a>
+<a id="orgd6ee067"></a>
 
 ### First 5 results
 
@@ -1170,7 +1607,7 @@ Hints:
 </table>
 
 
-<a id="org5c3cbb9"></a>
+<a id="orge525014"></a>
 
 ## Step 7a
 
@@ -1178,7 +1615,7 @@ Hints:
 2.  Put all expressions into the select for review.
 
 
-<a id="org631c47f"></a>
+<a id="org3c1aead"></a>
 
 ### Solution
 
@@ -1230,7 +1667,7 @@ Hints:
     }
 
 
-<a id="orgdcbb8ea"></a>
+<a id="org0cc7e07"></a>
 
 ### First 5 results
 
@@ -1373,7 +1810,7 @@ Hints:
 </table>
 
 
-<a id="org9b279f6"></a>
+<a id="org2e90c28"></a>
 
 ## Step 7b
 
@@ -1382,7 +1819,7 @@ Hints:
 3.  Report only the questionable entries.
 
 
-<a id="org54470ce"></a>
+<a id="org258a9eb"></a>
 
 ### Solution
 
@@ -1488,7 +1925,7 @@ Hints:
     }
 
 
-<a id="orga2d47ca"></a>
+<a id="org53850c2"></a>
 
 ### First 5 results
 
@@ -1535,7 +1972,7 @@ WARNING: Unused predicate computeIndices (/Users/hohn/local/codeql-workshop-runt
 </table>
 
 
-<a id="orgbe1a4ba"></a>
+<a id="org3478261"></a>
 
 ## Step 8
 
@@ -1586,7 +2023,7 @@ Note:
 -   We will address this in the next section.
 
 
-<a id="org966c6c5"></a>
+<a id="org3f5fce2"></a>
 
 ### Solution
 
@@ -1651,7 +2088,7 @@ Note:
     }
 
 
-<a id="org9c29a8e"></a>
+<a id="org0473a24"></a>
 
 ### First 5 results
 
@@ -1780,7 +2217,7 @@ Note:
 </table>
 
 
-<a id="org39ee1c0"></a>
+<a id="org1665440"></a>
 
 ## Interim notes
 
@@ -1799,7 +2236,7 @@ constants that flow to a given expression.  Another approach is global value
 numbering, used next.
 
 
-<a id="org477a7f7"></a>
+<a id="org7fde7a9"></a>
 
 ## Step 8a
 
@@ -1814,7 +2251,7 @@ Note:
 These are addressed in the next step.
 
 
-<a id="orgf806ffb"></a>
+<a id="org5b44900"></a>
 
 ### Solution
 
@@ -1883,7 +2320,7 @@ These are addressed in the next step.
     }
 
 
-<a id="org18e8bda"></a>
+<a id="orgec9f223"></a>
 
 ### First 5 results
 
@@ -2012,7 +2449,7 @@ These are addressed in the next step.
 </table>
 
 
-<a id="org5b5e629"></a>
+<a id="org5178301"></a>
 
 ## Step 9 &#x2013; Global Value Numbering
 
@@ -2028,9 +2465,6 @@ This is the case in the last test case,
         buf[sz * x * y];     // NON_COMPLIANT
         buf[sz * x * y + 1]; // NON_COMPLIANT
     }
-
-Reference:
-<https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/> 
 
 Global value numbering only knows that runtime values are equal; they
 are not comparable (`<, >, <=` etc.), and the *actual* value is not
@@ -2056,13 +2490,8 @@ for expressions like
 
 we have to "evaluate" the expressions &#x2013; or at least bound them.
 
-XX:
-For the cases with variable `malloc` sizes, like `test_const_branch`, GVN
-identifies same-value constant accesses, but we need a special case for
-same-value expression accesses.
 
-
-<a id="orgc717ad3"></a>
+<a id="org9889f6d"></a>
 
 ### Solution
 
@@ -2109,7 +2538,7 @@ same-value expression accesses.
       accessIdx, accessOffset
 
 
-<a id="orgf97dbbc"></a>
+<a id="org6d67c9e"></a>
 
 ### First 5 results
 
@@ -2236,18 +2665,249 @@ Results note:
     </table>
 
 
-<a id="orgc221436"></a>
+<a id="org601da34"></a>
 
-## TODO hashconsing
+## Step 9a &#x2013; hashconsing
 
-import semmle.code.cpp.valuenumbering.HashCons
+For the cases with variable `malloc` sizes, like `test_const_branch`, GVN
+identifies same-value constant accesses, but we need a special case for
+same-structure expression accesses.  Enter `hashCons`.
 
-hashcons: every value gets a number based on structure. Fails on
+From the reference:
+<https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/> 
 
-    char *buf = malloc(sz * x * y);
-    sz = 100;
-    buf[sz * x * y - 1]; // COMPLIANT
+> The hash consing library (defined in semmle.code.cpp.valuenumbering.HashCons)
+> provides a mechanism for identifying expressions that have the same syntactic
+> structure.
 
-The final exercise is to implement the `isOffsetOutOfBoundsGVN`
-predicate to [&#x2026;]
+Additions to the imports, and use:
+
+    import semmle.code.cpp.valuenumbering.HashCons
+        ...
+    hashCons(expr)
+
+This step illustrates some subtle meanings of equality.  In particular, there
+is plain `=`, GVN, and `hashCons`:
+
+    // 0 results:
+    // (accessBase = allocSizeExpr or accessBase = allocArg)
+    
+    // Only 6 results:
+    
+    // (
+    //   gvnAccessIdx = gvnAllocSizeExpr or
+    //   gvnAccessIdx = globalValueNumber(allocArg)
+    // )
+    
+    // 9 results:
+    (
+      hashCons(accessBase) = hashCons(allocSizeExpr) or
+      hashCons(accessBase) = hashCons(allocArg)
+    )
+
+
+<a id="orgb08a8c8"></a>
+
+### Solution
+
+    import cpp
+    import semmle.code.cpp.dataflow.DataFlow
+    import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+    import semmle.code.cpp.valuenumbering.HashCons
+    
+    from
+      AllocationExpr buffer, ArrayExpr access, Expr allocSizeExpr, Expr accessIdx, GVN gvnAccessIdx,
+      GVN gvnAllocSizeExpr, int accessOffset,
+      // +++
+      Expr allocArg, Expr accessBase
+    where
+      // malloc (100)
+      // ^^^^^^^^^^^^ AllocationExpr buffer
+      // buf[...]
+      // ^^^  ArrayExpr access
+      // buf[...]
+      //     ^^^ accessIdx
+      accessIdx = access.getArrayOffset() and
+      // Find allocation size expression flowing to the allocation.
+      DataFlow::localExprFlow(allocSizeExpr, buffer.getSizeExpr()) and
+      // Ensure buffer access refers to the matching allocation
+      DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+      // Use GVN
+      globalValueNumber(accessIdx) = gvnAccessIdx and
+      globalValueNumber(allocSizeExpr) = gvnAllocSizeExpr and
+      (
+        // buf[size] or buf[100]
+        gvnAccessIdx = gvnAllocSizeExpr and
+        accessOffset = 0 and
+        // +++
+        accessBase = accessIdx
+        or
+        // buf[sz * x * y + 1];
+        exists(AddExpr add |
+          accessIdx = add and
+          accessOffset >= 0 and
+          accessOffset = add.getRightOperand().(Literal).getValue().toInt() and
+          globalValueNumber(add.getLeftOperand()) = gvnAllocSizeExpr and
+          // +++
+          accessBase = add.getLeftOperand()
+        )
+      ) and
+      buffer.getSizeExpr() = allocArg and
+      (
+        accessOffset >= 0 and
+        // +++
+        // Illustrating the subtle meanings of equality:    
+        // 0 results:
+        // (accessBase = allocSizeExpr or accessBase = allocArg)
+        // Only 6 results:
+        // (
+        //   gvnAccessIdx = gvnAllocSizeExpr or
+        //   gvnAccessIdx = globalValueNumber(allocArg)
+        // )
+        // 9 results:
+        (
+          hashCons(accessBase) = hashCons(allocSizeExpr) or
+          hashCons(accessBase) = hashCons(allocArg)
+        )
+      )
+    // gvnAccessIdx = globalValueNumber(allocArg))
+    // +++ overview select:
+    select access, gvnAllocSizeExpr, allocSizeExpr, allocArg, gvnAccessIdx, accessIdx, accessBase,
+      accessOffset
+
+
+<a id="org4566318"></a>
+
+### First 5 results
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">test.c:21:5:21:13</td>
+<td class="org-left">access to array</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-left">100</td>
+<td class="org-left">test.c:16:24:16:27</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:21:9:21:12</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:21:9:21:12</td>
+<td class="org-left">size</td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:21:5:21:13</td>
+<td class="org-left">access to array</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:16:24:16:27</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:16:24:16:27</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:15:26:15:28</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:21:9:21:12</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:21:9:21:12</td>
+<td class="org-left">size</td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:38:5:38:12</td>
+<td class="org-left">access to array</td>
+<td class="org-left">test.c:26:39:26:41</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:26:39:26:41</td>
+<td class="org-left">100</td>
+<td class="org-left">test.c:28:24:28:27</td>
+<td class="org-left">size</td>
+<td class="org-left">test.c:26:39:26:41</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:38:9:38:11</td>
+<td class="org-left">100</td>
+<td class="org-left">test.c:38:9:38:11</td>
+<td class="org-left">100</td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:69:5:69:19</td>
+<td class="org-left">access to array</td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:69:9:69:18</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:69:9:69:18</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-right">0</td>
+</tr>
+
+
+<tr>
+<td class="org-left">test.c:73:9:73:23</td>
+<td class="org-left">access to array</td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:63:24:63:33</td>
+<td class="org-left">GVN</td>
+<td class="org-left">test.c:73:13:73:22</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-left">test.c:73:13:73:22</td>
+<td class="org-left">alloc<sub>size</sub></td>
+<td class="org-right">0</td>
+</tr>
+</tbody>
+</table>
 

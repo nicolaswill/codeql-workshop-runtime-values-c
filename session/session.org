@@ -499,9 +499,6 @@ To address these, take the query from the previous exercise and
    }
    #+end_example
 
-   Reference:
-   [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/]] 
-
    Global value numbering only knows that runtime values are equal; they
    are not comparable (=<, >, <== etc.), and the /actual/ value is not
    known.
@@ -527,11 +524,6 @@ To address these, take the query from the previous exercise and
    #+end_example
    we have to "evaluate" the expressions -- or at least bound them.
 
-   XX:
-   For the cases with variable =malloc= sizes, like =test_const_branch=, GVN
-   identifies same-value constant accesses, but we need a special case for
-   same-value expression accesses.
-
 *** Solution
     #+INCLUDE: "example9.ql" src java
 
@@ -542,16 +534,50 @@ To address these, take the query from the previous exercise and
 
      #+INCLUDE: "../session-tests/Example9/example9.expected" :lines "-6"’
 
-** TODO hashconsing
-import semmle.code.cpp.valuenumbering.HashCons
+** Step 9a -- hashconsing
+   For the cases with variable =malloc= sizes, like =test_const_branch=, GVN
+   identifies same-value constant accesses, but we need a special case for
+   same-structure expression accesses.  Enter =hashCons=.
 
-hashcons: every value gets a number based on structure. Fails on
-#+begin_example
-char *buf = malloc(sz * x * y);
-sz = 100;
-buf[sz * x * y - 1]; // COMPLIANT
-#+end_example
+   From the reference:
+   [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/]] 
 
+   #+BEGIN_QUOTE
+    The hash consing library (defined in semmle.code.cpp.valuenumbering.HashCons)
+    provides a mechanism for identifying expressions that have the same syntactic
+    structure.
+   #+END_QUOTE
 
-The final exercise is to implement the =isOffsetOutOfBoundsGVN=
-predicate to [...]
+   Additions to the imports, and use:
+   #+BEGIN_SRC java
+     import semmle.code.cpp.valuenumbering.HashCons
+         ...
+     hashCons(expr)
+   #+END_SRC
+
+   This step illustrates some subtle meanings of equality.  In particular, there
+   is plain ===, GVN, and =hashCons=:
+   #+BEGIN_SRC java
+       // 0 results:
+       // (accessBase = allocSizeExpr or accessBase = allocArg)
+
+       // Only 6 results:
+
+       // (
+       //   gvnAccessIdx = gvnAllocSizeExpr or
+       //   gvnAccessIdx = globalValueNumber(allocArg)
+       // )
+
+       // 9 results:
+       (
+         hashCons(accessBase) = hashCons(allocSizeExpr) or
+         hashCons(accessBase) = hashCons(allocArg)
+       )
+
+   #+END_SRC
+
+*** Solution
+    #+INCLUDE: "Example9a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example9a/example9a.expected" :lines "-6"’
