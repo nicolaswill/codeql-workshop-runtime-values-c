@@ -191,9 +191,10 @@ Standards repository]].
    constant expression.
 
 *** Solution
-   #+INCLUDE: "example1.ql" src java
+    #+INCLUDE: "example1.ql" src java
 
-This produces 12 results, with some cross-function pairs.
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example1/example1.expected" :lines "-6"’
 
 ** Step 2
 The previous query fails to connect the =malloc= calls with the array accesses,
@@ -214,11 +215,10 @@ To address these, take the query from the previous exercise and
    =Expr.getArrayBase()= predicate.
 
 *** Solution
-
     #+INCLUDE: "example2.ql" src java
 
-*** Results
-    There are now 3 results.  These are from only one function, the one using constants.
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example2/example2.expected" :lines "-6"’
 
 ** Step 3
    :PROPERTIES:
@@ -241,11 +241,10 @@ To address these, take the query from the previous exercise and
    We include this result by removing the size-retrieval from the prior query.
 
 *** Solution
-
     #+INCLUDE: "example3.ql" src java
 
-*** Results
-    Now, we get 12 results, including some from other test cases.
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example3/example3.expected" :lines "-6"’
 
 ** Step 4
    We are looking for out-of-bounds accesses, so we to need to include the
@@ -261,11 +260,10 @@ To address these, take the query from the previous exercise and
 *** Hint
     
 *** Solution
-
     #+INCLUDE: "example4.ql" src java
 
-*** Results
-    Now, we get 15 results, limited to statically determined values.
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example4/example4.expected" :lines "-6"’
 
 ** Step 4a -- some clean-up using predicates
 
@@ -290,8 +288,10 @@ To address these, take the query from the previous exercise and
       =getValue().toInt()= as one possibility (one predicate).
 
 *** Solution
-
     #+INCLUDE: "example4a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example4a/example4a.expected" :lines "-6"’
 
 ** Step 5 -- SimpleRangeAnalysis
    Running the query from Step 2 against the database yields a
