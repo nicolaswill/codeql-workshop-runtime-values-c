@@ -1,5 +1,0 @@
-| test.c:8:5:8:12 | access to array | Array access out of bounds: access to array with offset 100 on $@ with size 100 | test.c:5:17:5:22 | call to malloc | allocation |
-| test.c:18:5:18:12 | access to array | Array access out of bounds: access to array with offset 100 on $@ with size 100 | test.c:14:17:14:22 | call to malloc | allocation |
-| test.c:19:5:19:13 | access to array | Array access out of bounds: access to array with offset 100 on $@ with size 100 | test.c:14:17:14:22 | call to malloc | allocation |
-| test.c:35:5:35:17 | access to array | Array access out of bounds: access to array with offset 299 on $@ with size 200 | test.c:26:17:26:22 | call to malloc | allocation |
-| test.c:37:5:37:13 | access to array | Array access out of bounds: access to array with offset 300 on $@ with size 200 | test.c:26:17:26:22 | call to malloc | allocation |
