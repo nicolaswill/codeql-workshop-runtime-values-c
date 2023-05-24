@@ -1,86 +1,51 @@
-/**
- * @id cpp/array-access-out-of-bounds
- * @description Access of an array with an index that is greater or equal to the element num.
- * @kind problem
- * @problem.severity error
- */
-
 import cpp
-import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 import semmle.code.cpp.dataflow.DataFlow
-import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-/**
- * Gets an expression that flows to `dest` and has a constant value.
- */
-bindingset[dest]
-Expr getSourceConstantExpr(Expr dest) {
-  exists(result.getValue().toInt()) and
-  DataFlow::localExprFlow(result, dest)
-}
 
-/**
- * Gets the smallest of the upper bound of `e` or the largest source value (i.e. "stated value") that flows to `e`.
- * Because range-analysis can over-widen bounds, take the minimum of range analysis and data-flow sources.
- *
- * If there is no source value that flows to `e`, this predicate does not hold.
- *
- * This predicate, if `e` is the `sz` arg to `malloc`, would return `20` for the following:
- * ```
- * size_t sz = condition ? 10 : 20;
- * malloc(sz);
- * ```
- */
-bindingset[e]
-int getMaxStatedValue(Expr e) {
-  result = upperBound(e).minimum(max(getSourceConstantExpr(e).getValue().toInt()))
-}
-
-bindingset[expr]
-int getExprOffsetValue(Expr expr, Expr base) { none() }
-
-class AllocationCall extends FunctionCall {
-  AllocationCall() { this.getTarget() instanceof AllocationFunction }
-
-  Expr getBuffer() { result = this }
-
-  Expr getSizeExpr() {
-    // AllocationExpr may sometimes return a subexpression of the size expression
-    // in order to separate the size from a sizeof expression in a MulExpr.
-    exists(AllocationFunction f |
-      f = this.(FunctionCall).getTarget() and
-      result = this.(FunctionCall).getArgument(f.getSizeArg())
-    )
-  }
-
-  int getFixedSize() { result = getMaxStatedValue(this.getSizeExpr()) }
-}
-
-class AccessExpr extends ArrayExpr {
-  AllocationCall source;
-
-  AccessExpr() { DataFlow::localExprFlow(source.getBuffer(), this.getArrayBase()) }
-
-  AllocationCall getSource() { result = source }
-
-  int getFixedArrayOffset() { none() }
-}
-
-predicate isOffsetOutOfBoundsConstant(
-  AccessExpr access, AllocationCall source, int allocSize, int accessOffset
-) {
-  source = access.getSource() and
-  allocSize = source.getFixedSize() and
-  accessOffset = access.getFixedArrayOffset() and
-  accessOffset >= allocSize
-}
-
-from AllocationCall source, AccessExpr access, string message
+from AllocationExpr buffer, ArrayExpr access, Expr accessIdx, int bufferSize, Expr bufferSizeExpr
 where
-  exists(int allocSize, int accessOffset |
-    isOffsetOutOfBoundsConstant(access, source, allocSize, accessOffset) and
-    message =
-      "Array access out of bounds: " + access.toString() + " with offset " + accessOffset.toString()
-        + " on $@ with size " + allocSize.toString()
+  // malloc (100)
+  // ^^^^^^^^^^^^ AllocationExpr buffer
+  //
+  // buf[...]
+  // ^^^  ArrayExpr access
+  //
+  // buf[...]
+  //     ^^^  int accessIdx
+  //
+  accessIdx = access.getArrayOffset() and
+  //
+  // malloc (100)
+  //         ^^^ allocSizeExpr / bufferSize
+  //
+  getAllocConstantExpr(bufferSizeExpr, bufferSize) and
+  // Ensure buffer access is to the correct allocation.
+  DataFlow::localExprFlow(buffer, access.getArrayBase()) and
+  // Ensure use refers to the correct size defintion, even for non-constant
+  // expressions.  
+  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr())
+  //
+select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax
+
+/**
+ * Gets an expression that flows to the allocation (which includes those already in the allocation)
+ * and has a constant value.
+ */
+predicate getAllocConstantExpr(Expr bufferSizeExpr, int bufferSize) {
+  exists(AllocationExpr buffer |
+    //
+    // Capture BOTH with datflow:
+    // 1.
+    // malloc (100)
+    //         ^^^ allocSizeExpr / bufferSize
+    //
+    // 2.
+    // unsigned long size = 100;
+    // ...
+    // char *buf = malloc(size);
+    DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+    bufferSizeExpr.getValue().toInt() = bufferSize
   )
-select access, message, source, "allocation"
+}
+

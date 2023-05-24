@@ -1,8 +1,7 @@
 import cpp
 import semmle.code.cpp.dataflow.DataFlow
-import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
 
-from AllocationExpr buffer, ArrayExpr access, Expr accessIdx, int bufferSize, Expr bufferSizeExpr
+from AllocationExpr buffer, ArrayExpr access, int accessIdx, int bufferSize, Expr bufferSizeExpr
 where
   // malloc (100)
   // ^^^^^^^^^^^^ AllocationExpr buffer
@@ -13,22 +12,16 @@ where
   // buf[...]
   //     ^^^  int accessIdx
   //
-  accessIdx = access.getArrayOffset() and
-  //
-  // malloc (100)
-  //         ^^^ allocSizeExpr / bufferSize
-  //
+  accessIdx = access.getArrayOffset().getValue().toInt() and
   getAllocConstantExpr(bufferSizeExpr, bufferSize) and
-  // Ensure buffer access is to the correct allocation.
+  // Ensure buffer access refers to the matching allocation
+  // ensureSameFunction(buffer, access.getArrayBase()) and
   DataFlow::localExprFlow(buffer, access.getArrayBase()) and
-  // Ensure use refers to the correct size defintion, even for non-constant
-  // expressions.  
-  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr())
+  // Ensure buffer access refers to the matching allocation
+  // ensureSameFunction(bufferSizeExpr, buffer.getSizeExpr()) and
+  DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) 
   //
-select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax, bufferSize,
-  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType() as arrayBaseType,
-  access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize() as arrayTypeSize,
-  1 as allocBaseSize
+select buffer, access, accessIdx, access.getArrayOffset(), bufferSize, bufferSizeExpr
 
 /**
  * Gets an expression that flows to the allocation (which includes those already in the allocation)
