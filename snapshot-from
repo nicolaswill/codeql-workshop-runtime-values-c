@@ -1,0 +1,40 @@
+#!/bin/bash -e
+usage="$0 from.ql to
+
+Create 
+session-tests/queryfile/
+├── queryfile.expected
+├── queryfile..qlref
+└── test.c
+
+Example:
+$0 session/example8.ql example8a 
+"
+
+if [ $# -ne 2 ]; then
+    echo "$usage"
+    exit 1
+fi
+
+query=$1
+from=$(basename $(echo $1 | sed s/\.ql//g;))
+to=session-tests/$2
+tof=$2
+
+if [ ! -f $query ] ; then
+    echo "Missing source query file $query (1st argument)"
+    exit 1
+fi
+
+echo "Creating test directory $to"
+mkdir -p $to
+echo "no value" > $to/$tof.expected
+echo $tof.ql > $to/$tof.qlref
+cp session-db/DB/db.c $to/test.c
+
+echo "Creating source file $to"
+cp $query session/$tof.ql
+
+
+
+

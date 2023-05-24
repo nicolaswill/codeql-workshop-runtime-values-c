@@ -1,0 +1,3 @@
+| test.c:7:17:7:22 | call to malloc | test.c:8:5:8:10 | access to array | 0 | test.c:8:9:8:9 | 0 | 100 | test.c:7:24:7:26 | 100 |
+| test.c:7:17:7:22 | call to malloc | test.c:9:5:9:11 | access to array | 99 | test.c:9:9:9:10 | 99 | 100 | test.c:7:24:7:26 | 100 |
+| test.c:7:17:7:22 | call to malloc | test.c:10:5:10:12 | access to array | 100 | test.c:10:9:10:11 | 100 | 100 | test.c:7:24:7:26 | 100 |
