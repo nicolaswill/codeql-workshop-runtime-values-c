@@ -1,7 +1,6 @@
 ---
 library: false
-name: solutions
+name: session
 version: 0.0.1
 dependencies:
   codeql/cpp-all: 0.6.1
-  library: "*"

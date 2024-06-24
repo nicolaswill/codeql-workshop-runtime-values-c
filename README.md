@@ -5,15 +5,30 @@ This workshop is based on a significantly simplified and modified version of the
 
 ## Setup Instructions
 - Install [Visual Studio Code](https://code.visualstudio.com/).
+
 - Install the [CodeQL extension for Visual Studio Code](https://codeql.github.com/docs/codeql-for-visual-studio-code/setting-up-codeql-in-visual-studio-code/).
+
 - Install the latest version of the [CodeQL CLI](https://github.com/github/codeql-cli-binaries/releases).
+
 - Clone this repository:
   ```bash
   git clone https://github.com/kraiouchkine/codeql-workshop-runtime-values-c
   ```
-- Install the CodeQL pack dependencies using the command `CodeQL: Install Pack Dependencies` and select `exercises`, `solutions`, `exercises-tests`, and `solutions-tests` from the list of packs.
-- If you have CodeQL on your PATH, build the database using `build-database.sh` and load the database with the VS Code CodeQL extension. 
+
+- Install the CodeQL pack dependencies using the command `CodeQL: Install Pack
+  Dependencies` and select `exercises`, `solutions`, `exercises-tests`, `session`,
+  `session-db` and `solutions-tests` from the list of packs.
+
+- If you have CodeQL on your PATH, build the database using `build-database.sh`
+  and load the database with the VS Code CodeQL extension.  It is at
+  `session-db/cpp-runtime-values-db`.
   - Alternatively, you can download [this pre-built database](https://drive.google.com/file/d/1N8TYJ6f4E33e6wuyorWHZHVCHBZy8Bhb/view?usp=sharing).
+
+- If you do **not** have CodeQL on your PATH, build the database using the unit
+  test sytem.  Choose the `TESTING` tab in VS Code, run the
+  `session-db/DB/db.qlref` test.  The test will fail, but it leaves a usable CodeQL
+  database in `session-db/DB/DB.testproj`.  
+
 - :exclamation:Important:exclamation:: Run `initialize-qltests.sh` to initialize the tests. Otherwise, you will not be able to run the QLTests in `exercises-tests`.
 
 ## Introduction
@@ -63,11 +78,21 @@ This workshop is not intended to be a complete analysis that is useful for real-
 
 The goal of this workshop is rather to demonstrate the building blocks of analyzing run-time values and how to apply those building blocks to modelling a common class of vulnerability. A more comprehensive and production-appropriate example is the [OutOfBounds.qll library](https://github.com/github/codeql-coding-standards/blob/main/c/common/src/codingstandards/c/OutOfBounds.qll) from the [CodeQL Coding Standards repository](https://github.com/github/codeql-coding-standards).
 
-## Exercises
+## Session/Workshop notes
+Unlike the the [exercises](#org3b74422) which use the *collection* of test
+problems in `exercises-test`, a workshop follows `session/session.ql` and uses a
+*single* database built from a single, larger segment of code.
+
+<a id="org3b74422"></a>
+## Exercises 
+These exercises use the collection of test problems in `exercises-test`.
+
 ### Exercise 1
 In the first exercise we are going to start by modelling a dynamic allocation with `malloc` and an access to that allocated buffer with an array expression. The goal of this exercise is to then output the array access, buffer, array size, and buffer offset.
 
 The [first test-case](solutions-tests/Exercise1/test.c) is a simple one, as both the allocation size and array offsets are constants.
+
+For this exercise, connect the allocation(s), the array accesses, and the sizes in each.
 
 Run the query and ensure that you have three results.
 
@@ -76,7 +101,14 @@ Run the query and ensure that you have three results.
 2. Use `DataFlow::localExprFlow()` to relate the allocated buffer to the array base.
 
 ### Exercise 2
-This exercise uses the same C source code, duplicated for the test [here](solutions-tests/Exercise2/test.c).
+This exercise uses the same C source code with an addition: a constant array size
+propagated [via a variable](solutions-tests/Exercise2/test.c).
+
+Hints:
+1. start with plain `from...where...select` query.
+2. use
+   `elementSize = access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()`
+2. convert your query to predicate or use classes as outlined below, if desired.
 
 #### Task 1
 With the basic elements of the analysis in place, refactor the query into two classes: `AllocationCall` and `ArrayAccess`. The `AllocationCall` class should model a call to `malloc` and the `ArrayAccess` class should model an array access expression (`ArrayExpr`).
@@ -89,6 +121,8 @@ Use local data-flow analysis to complete the `getSourceConstantExpr` predicate. 
 
 ### Exercise 3
 This exercise has slightly more C source code [here](solutions-tests/Exercise3/test.c).
+
+Note: the `test_const_branch` has `buf[100]` with size == 100
 
 Running the query from Exercise 2 against the database yields a significant number of missing or incorrect results. The reason is that although great at identifying compile-time constants and their use, data-flow analysis is not always the right tool for identifying the *range* of values an `Expr` might have, particularly when multiple potential constants might flow to an `Expr`.
 
@@ -110,6 +144,12 @@ Implement the `isOffsetOutOfBoundsConstant` predicate to check if the array offs
 You should now have five results in the test (six in the built database).
 
 ### Exercise 4
+Note: We *could* evolve this code to handle `size`s inside conditionals using
+guards on data flow.  But this amounts to implementing a small interpreter.
+The range analysis library already handles conditional branches; we don't
+have to use guards on data flow -- don't implement your own interpreter if you can
+use the library.
+
 Again, a slight longer C [source snippet](solutions-tests/Exercise4/test.c).
 
 A common issue with the `SimpleRangeAnalysis` library is handling of cases where the bounds are undeterminable at compile-time on one or more paths. For example, even though certain branches have clearly defined bounds, the range analysis library will define the `upperBound` and `lowerBound` of `val` as `INT_MIN` and `INT_MAX` respectively:
@@ -165,3 +205,39 @@ Do not compute the GVN of the entire array index expression; use the base of an 
 Exclude duplicate results by only reporting `isOffsetOutOfBoundsGVN` for `access`/`source` pairs that are not already reported by `isOffsetOutOfBoundsConstant`.
 
 You should now see thirteen results.
+
+Some notes:
+
+Global value numbering only knows that runtime values are equal; they are not
+comparable (`<, >, <=` etc.), and the *actual* value is not known.
+Reference: https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/
+
+
+In the query, look for and use *relative* values between allocation and use.  To
+do this, use GVN.
+This is the case in 
+
+    void test_gvn_var(unsigned long x, unsigned long y, unsigned long sz)
+    {
+        char *buf = malloc(sz * x * y);
+        buf[sz * x * y - 1]; // COMPLIANT
+        buf[sz * x * y];     // NON_COMPLIANT
+        buf[sz * x * y + 1]; // NON_COMPLIANT
+    }
+
+Range analyis won't bound `sz * x * y`, so switch to global value numbering.
+<!-- Or use hashcons. -->
+Global value numbering finds expressions that are known to have the same runtime
+value, independent of structure.  To get the Global Value Number in CodeQL: 
+
+    ...
+    globalValueNumber(e) = globalValueNumber(sizeExpr) and
+    e != sizeExpr
+    ...
+
+We can use global value numbering to identify common values as first step, but for
+expressions like
+
+    buf[sz * x * y - 1]; // COMPLIANT
+
+we have to "evaluate" the expressions -- or at least bound them.

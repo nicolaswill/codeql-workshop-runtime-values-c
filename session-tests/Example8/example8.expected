@@ -1,0 +1,12 @@
+| test.c:16:17:16:22 | call to malloc | test.c:16:24:16:27 | size | 0 | test.c:19:5:19:17 | access to array | test.c:19:9:19:12 | size | -1 | test.c:15:19:15:22 | size | test.c:15:19:15:22 | size |
+| test.c:16:17:16:22 | call to malloc | test.c:16:24:16:27 | size | 0 | test.c:21:5:21:13 | access to array | test.c:21:9:21:12 | size | 0 | test.c:15:19:15:22 | size | test.c:15:19:15:22 | size |
+| test.c:28:17:28:22 | call to malloc | test.c:28:24:28:27 | size | 0 | test.c:37:5:37:17 | access to array | test.c:37:9:37:12 | size | -1 | test.c:26:19:26:22 | size | test.c:26:19:26:22 | size |
+| test.c:28:17:28:22 | call to malloc | test.c:28:24:28:27 | size | 0 | test.c:39:5:39:13 | access to array | test.c:39:9:39:12 | size | 0 | test.c:26:19:26:22 | size | test.c:26:19:26:22 | size |
+| test.c:28:17:28:22 | call to malloc | test.c:28:24:28:27 | size | 0 | test.c:43:9:43:17 | access to array | test.c:43:13:43:16 | size | 0 | test.c:26:19:26:22 | size | test.c:26:19:26:22 | size |
+| test.c:28:17:28:22 | call to malloc | test.c:28:24:28:27 | size | 0 | test.c:44:9:44:21 | access to array | test.c:44:13:44:16 | size | 1 | test.c:26:19:26:22 | size | test.c:26:19:26:22 | size |
+| test.c:28:17:28:22 | call to malloc | test.c:28:24:28:27 | size | 0 | test.c:45:9:45:21 | access to array | test.c:45:13:45:16 | size | 2 | test.c:26:19:26:22 | size | test.c:26:19:26:22 | size |
+| test.c:63:17:63:22 | call to malloc | test.c:63:24:63:33 | alloc_size | 0 | test.c:68:5:68:23 | access to array | test.c:68:9:68:18 | alloc_size | -1 | test.c:51:19:51:28 | alloc_size | test.c:51:19:51:28 | alloc_size |
+| test.c:63:17:63:22 | call to malloc | test.c:63:24:63:33 | alloc_size | 0 | test.c:69:5:69:19 | access to array | test.c:69:9:69:18 | alloc_size | 0 | test.c:51:19:51:28 | alloc_size | test.c:51:19:51:28 | alloc_size |
+| test.c:63:17:63:22 | call to malloc | test.c:63:24:63:33 | alloc_size | 0 | test.c:73:9:73:23 | access to array | test.c:73:13:73:22 | alloc_size | 0 | test.c:51:19:51:28 | alloc_size | test.c:51:19:51:28 | alloc_size |
+| test.c:63:17:63:22 | call to malloc | test.c:63:24:63:33 | alloc_size | 0 | test.c:74:9:74:27 | access to array | test.c:74:13:74:22 | alloc_size | 1 | test.c:51:19:51:28 | alloc_size | test.c:51:19:51:28 | alloc_size |
+| test.c:63:17:63:22 | call to malloc | test.c:63:24:63:33 | alloc_size | 0 | test.c:75:9:75:27 | access to array | test.c:75:13:75:22 | alloc_size | 2 | test.c:51:19:51:28 | alloc_size | test.c:51:19:51:28 | alloc_size |

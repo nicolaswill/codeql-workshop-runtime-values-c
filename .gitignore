@@ -1,4 +1,5 @@
 .cache
+*.html
 *.testproj
 *.lock.yaml
 *.lock.yml

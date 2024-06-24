@@ -1,0 +1,594 @@
+* CodeQL Workshop --- Using Data-Flow and Range Analysis to Find Out-Of-Bounds Accesses
+:PROPERTIES:
+:CUSTOM_ID: codeql-workshop--using-data-flow-and-range-analysis-to-find-out-of-bounds-accesses
+:END:
+* Acknowledgments
+  :PROPERTIES:
+  :CUSTOM_ID: acknowledgments
+  :END:
+
+This session-based workshop is based on the exercise/unit-test-based material at
+https://github.com/kraiouchkine/codeql-workshop-runtime-values-c, which in turn is
+based on a significantly simplified and modified version of the
+[[https://github.com/github/codeql-coding-standards/blob/main/c/common/src/codingstandards/c/OutOfBounds.qll][OutOfBounds.qll library]] from the
+[[https://github.com/github/codeql-coding-standards][CodeQL Coding Standards
+repository]]. 
+
+* Setup Instructions
+  :PROPERTIES:
+  :CUSTOM_ID: setup-instructions
+  :END:
+- Install [[https://code.visualstudio.com/][Visual Studio Code]].
+
+- Install the
+  [[https://codeql.github.com/docs/codeql-for-visual-studio-code/setting-up-codeql-in-visual-studio-code/][CodeQL extension for Visual Studio Code]].
+
+- Install the latest version of the
+  [[https://github.com/github/codeql-cli-binaries/releases][CodeQL CLI]].
+
+- Clone this repository:
+  #+begin_src sh
+  git clone https://github.com/hohn/codeql-workshop-runtime-values-c
+  #+end_src
+
+- Install the CodeQL pack dependencies using the command
+  =CodeQL: Install Pack Dependencies= and select =exercises=,
+  =solutions=, =exercises-tests=, =session=, =session-db= and
+  =solutions-tests= from the list of packs.
+
+- If you have CodeQL on your PATH, build the database using
+  =build-database.sh= and load the database with the VS Code CodeQL
+  extension. It is at =session-db/cpp-runtime-values-db=.
+
+  - Alternatively, you can download
+    [[https://drive.google.com/file/d/1N8TYJ6f4E33e6wuyorWHZHVCHBZy8Bhb/view?usp=sharing][this
+    pre-built database]].
+
+- If you do *not* have CodeQL on your PATH, build the database using the
+  unit test sytem. Choose the =TESTING= tab in VS Code, run the
+  =session-db/DB/db.qlref= test. The test will fail, but it leaves a
+  usable CodeQL database in =session-db/DB/DB.testproj=.
+
+- ❗Important❗: Run =initialize-qltests.sh= to initialize the tests.
+  Otherwise, you will not be able to run the QLTests in
+  =exercises-tests=.
+
+* Introduction
+  :PROPERTIES:
+  :CUSTOM_ID: introduction
+  :END:
+This workshop focuses on analyzing and relating two values --- array
+access indices and memory allocation sizes --- in order to identify
+simple cases of out-of-bounds array accesses.
+
+The following snippets demonstrate how an out-of-bounds array access can
+occur:
+
+#+begin_src cpp
+char* buffer = malloc(10);
+buffer[9] = 'a'; // ok
+buffer[10] = 'b'; // out-of-bounds
+#+end_src
+
+A more complex example:
+
+#+begin_src cpp
+char* buffer;
+if(rand() == 1) {
+    buffer = malloc(10);
+}
+else {
+    buffer = malloc(11);
+}
+size_t index = 0;
+if(rand() == 1) {
+    index = 10;
+}
+buffer[index]; // potentially out-of-bounds depending on control-flow
+#+end_src
+
+Another common case /not/ covered in this introductory workshop involves
+loops, as follows:
+
+#+begin_src cpp
+int elements[5];
+for (int i = 0; i <= 5; ++i) {
+    elements[i] = 0;
+}
+#+end_src
+
+To find these issues, we can implement an analysis that tracks the upper
+or lower bounds on an expression and, combined with data-flow analysis
+to reduce false-positives, identifies cases where the index of the array
+results in an access beyond the allocated size of the buffer.
+
+* A Note on the Scope of This Workshop
+  :PROPERTIES:
+  :CUSTOM_ID: a-note-on-the-scope-of-this-workshop
+  :END:
+  This workshop is not intended to be a complete analysis that is useful
+  for real-world cases of out-of-bounds analyses for reasons including but
+  not limited to:
+
+  - Missing support for loops and recursion
+  - No interprocedural analysis
+  - Missing size calculation of arrays where the element size is not 1
+  - No support for pointer arithmetic or in general, operations other than
+    addition and subtraction
+  - Overly specific modelling of a buffer access as an array expression
+
+  The goal of this workshop is rather to demonstrate the building blocks
+  of analyzing run-time values and how to apply those building blocks to
+  modelling a common class of vulnerability. A more comprehensive and
+  production-appropriate example is the
+  [[https://github.com/github/codeql-coding-standards/blob/main/c/common/src/codingstandards/c/OutOfBounds.qll][OutOfBounds.qll
+  library]] from the
+  [[https://github.com/github/codeql-coding-standards][CodeQL Coding
+  Standards repository]].
+
+* A short note on the structure of directories and their use
+
+  =exercises-tests= are identical to =solution-tests=, the =exercises= directories
+  are a convenience for developing the queries on your own so you can use the unit
+  tests as reference.  This is for full consistency with the workshop material --
+  the session -- but you may veer off and experiment on your own.
+
+  In that case, a simpler option is to follow the session writeup using a single
+  =.ql= file; the writeup has full queries and (at most) the first 5 results for
+  reference.
+ 
+* Session/Workshop notes
+  :PROPERTIES:
+  :CUSTOM_ID: sessionworkshop-notes
+  :END:
+
+  Unlike the the [[../README.md#org3b74422][exercises]] which use the /collection/ of test problems in
+  =exercises-test=, this workshop is a sequential session following the actual
+  process of writing CodeQL: use a /single/ database built from a single, larger
+  segment of code and inspect the query results as you write the query.  
+
+  For this workshop, the larger segment of code is still simplified skeleton code,
+  not a full source code repository.
+
+  The queries are embedded in `session.md` but can also be found in the
+  `example*.ql` files.  They can all be run as test cases in VS Code.
+
+  To reiterate:
+
+  This workshop focuses on analyzing and relating two /static/ values --- array
+  access indices and memory allocation sizes --- in order to identify
+  simple cases of out-of-bounds array accesses.  We do not handle /dynamic/ values
+  but take advantage of special cases.
+
+  To find these issues,
+  1. We can implement an analysis that tracks the upper or lower bounds on an
+     expression.
+  2. We then combine this with data-flow analysis to reduce false positives and
+     identify cases where the index of the array results in an access beyond the
+     allocated size of the buffer.
+  3. We further extend these queries with rudimentary arithmetic support involving
+     expressions common to the allocation and the array access.
+  4. For cases where constant expressions are not available or are uncertain, we
+     first try [[*Step 5 -- SimpleRangeAnalysis][range analysis]] to expand the query's applicability.
+  5. For cases where this is insufficient, we introduce global value numbering
+     [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering][GVN]] in [[*Step 9 -- Global Value Numbering][Step 9 -- Global Value Numbering]], to detect values known to be equal
+     at runtime.
+  6. When /those/ cases are insufficient, we handle the case of identical
+     structure using [[*hashconsing][hashconsing]].
+
+** Step 1
+   :PROPERTIES:
+   :CUSTOM_ID: exercise-1
+   :END:
+   In the first step we are going to
+   1. identify a dynamic allocation with =malloc= and
+   2. an access to that allocated buffer.   The access is via an array expression;
+      we are *not* going to cover pointer dereferencing.
+
+   The goal of this exercise is to then output the array access, array size,
+   buffer, and buffer offset.
+
+   The focus here is on
+   : void test_const(void)
+   and
+   : void test_const_var(void)
+   in [[file:~/local/codeql-workshop-runtime-values-c/session-db/DB/db.c][db.c]].
+
+*** Hints
+    :PROPERTIES:
+    :CUSTOM_ID: hints
+    :END:
+1. =Expr::getValue()::toInt()= can be used to get the integer value of a
+   constant expression.
+
+*** Solution
+    #+INCLUDE: "example1.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example1/example1.expected" :lines "-6"’
+
+** Step 2
+The previous query fails to connect the =malloc= calls with the array accesses,
+and in the results, =mallocs= from one function are paired with accesses in
+another.
+
+To address these, take the query from the previous exercise and
+1. connect the allocation(s) with the
+2. array accesses
+
+*** Hints
+    :PROPERTIES:
+    :CUSTOM_ID: hints
+    :END:
+1. Use =DataFlow::localExprFlow()= to relate the allocated buffer to the
+   array base.
+2. The the array base is the =buf= part of =buf[0]=.  Use the 
+   =Expr.getArrayBase()= predicate.
+
+*** Solution
+    #+INCLUDE: "example2.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example2/example2.expected" :lines "-6"’
+
+** Step 3
+   :PROPERTIES:
+   :CUSTOM_ID: exercise-2
+   :END:
+
+   The previous results need to be extended to the case
+   #+BEGIN_SRC c++
+     void test_const_var(void)
+     {
+         unsigned long size = 100;
+         char *buf = malloc(size);
+         buf[0];        // COMPLIANT
+         ...
+     }
+   #+END_SRC
+
+   Here, the =malloc= argument is a variable with known value.  
+
+   We include this result by removing the size-retrieval from the prior query.
+
+*** Solution
+    #+INCLUDE: "example3.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example3/example3.expected" :lines "-6"’
+
+** Step 4
+   We are looking for out-of-bounds accesses, so we to need to include the
+   bounds.  But in a more general way than looking only at constant values.
+
+   Note the results for the cases in =test_const_var= which involve a variable
+   access rather than a constant. The next goal is
+   1. to handle the case where the allocation size or array index are variables
+      (with constant values) rather than integer constants.
+
+   We have an expression =size= that flows into the =malloc()= call.
+   
+*** Hint
+    
+*** Solution
+    #+INCLUDE: "example4.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example4/example4.expected" :lines "-6"’
+
+** Step 4a -- some clean-up using predicates
+
+   Note that the dataflow automatically captures/includes the
+   : allocSizeExpr = buffer.(Call).getArgument(0) 
+   so that's now redundant with =bufferSizeExpr= and can be removed. 
+   #+BEGIN_SRC java
+
+     allocSizeExpr = buffer.(Call).getArgument(0) and
+     // bufferSize = allocSizeExpr.getValue().toInt() and
+     //
+     // unsigned long size = 100;
+     // ...
+     // char *buf = malloc(size);
+     DataFlow::localExprFlow(bufferSizeExpr, buffer.getSizeExpr()) and
+
+   #+END_SRC
+
+   Also, simplify the =from...where...select=:
+   1. Remove unnecessary =exists= clauses.
+   2. Use =DataFlow::localExprFlow= for the buffer and allocation sizes, with
+      =getValue().toInt()= as one possibility (one predicate).
+
+*** Solution
+    #+INCLUDE: "example4a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example4a/example4a.expected" :lines "-6"’
+
+** Step 5 -- SimpleRangeAnalysis
+   Running the query from Step 2 against the database yields a
+   significant number of missing or incorrect results. The reason is that
+   although great at identifying compile-time constants and their use,
+   data-flow analysis is not always the right tool for identifying the
+   /range/ of values an =Expr= might have, particularly when multiple
+   potential constants might flow to an =Expr=.
+
+   The range analysis already handles conditional branches; we don't
+   have to use guards on data flow -- don't implement your own interpreter
+   if you can use the library.
+
+   The CodeQL standard library has several mechanisms for addressing this
+   problem; in the remainder of this workshop we will explore two of them:
+   =SimpleRangeAnalysis= and, later, =GlobalValueNumbering=.
+
+   Although not in the scope of this workshop, a standard use-case for
+   range analysis is reliably identifying integer overflow and validating
+   integer overflow checks.
+
+   Now, add the use of the =SimpleRangeAnalysis= library.  Specifically, the
+   relevant library predicates are =upperBound= and =lowerBound=, to be used with
+   the buffer access argument.
+
+   Notes:
+   - This requires the import
+     : import semmle.code.cpp.rangeanalysis.SimpleRangeAnalysis
+   - We are not limiting the array access to integers any longer.  Thus, we just
+     use 
+     : accessIdx = access.getArrayOffset()
+   - To see the results in the order used in the C code, use
+     : select bufferSizeExpr, buffer, access, accessIdx, upperBound(accessIdx) as accessMax
+
+*** Solution
+    #+INCLUDE: "example5.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example5/example5.expected" :lines "-6"’
+
+** Step 6
+   To finally determine (some) out-of-bounds accesses, we have to convert
+   allocation units (usually in bytes) to size units.  Then we are finally in a
+   position to compare buffer allocation size to the access index to find
+   out-of-bounds accesses -- at least for expressions with known values.
+   
+   Add these to the query:
+   1. Convert allocation units to size units.
+   2. Convert access units to the same size units.
+
+   Hints:
+   1. We need the size of the array element.  Use
+      =access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType()=
+      to see the type and 
+      =access.getArrayBase().getUnspecifiedType().(PointerType).getBaseType().getSize()=
+      to get its size.
+
+   2. Note from the docs:
+      /The malloc() function allocates size bytes of memory and returns a pointer
+      to the allocated memory./ 
+      So =size = 1=
+
+   3. These test cases all use type =char=.  What would happen for =int= or
+      =double=? 
+
+*** Solution
+    #+INCLUDE: "example6.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example6/example6.expected" :lines "-6"’
+
+** Step 7
+   1. Clean up the query.
+   2. Compare buffer allocation size to the access index.
+   3. Add expressions for =allocatedUnits= (from the malloc) and a
+      =maxAccessedIndex= (from array accesses)
+      1. Calculate the =accessOffset= / =maxAccessedIndex= (from array accesses)
+      2. Calculate the =allocSize= / =allocatedUnits= (from the malloc)
+      3. Compare them
+
+*** Solution
+    #+INCLUDE: "example7.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example7/example7.expected" :lines "-6"’
+
+** Step 7a
+   1. Account for base sizes -- =char= in this case.
+   2. Put all expressions into the select for review.
+
+*** Solution
+    #+INCLUDE: "example7a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example7a/example7a.expected" :lines "-6"’
+
+** Step 7b
+   1. Introduce more general predicates.
+   2. Compare buffer allocation size to the access index.
+   3. Report only the questionable entries.
+
+*** Solution
+    #+INCLUDE: "example7b.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example7b/example7b.expected" :lines "-6"’
+
+** Step 8
+   Up to now, we have dealt with constant values
+   #+BEGIN_SRC c++
+     char *buf = malloc(100);
+     buf[0];   // COMPLIANT
+   #+END_SRC
+   or
+   #+BEGIN_SRC c++
+     unsigned long size = 100;
+     char *buf = malloc(size);
+     buf[0];        // COMPLIANT
+   #+END_SRC
+   and statically determinable or boundable values
+   #+BEGIN_SRC c++
+     char *buf = malloc(size);
+     if (size < 199)
+         {
+             buf[size];     // COMPLIANT
+             // ...
+         }
+   #+END_SRC
+
+   There is another statically determinable case.  Examples are
+   1. A simple expression
+      #+BEGIN_SRC c++
+        char *buf = malloc(alloc_size);
+        // ...
+        buf[alloc_size - 1]; // COMPLIANT
+        buf[alloc_size];     // NON_COMPLIANT
+      #+END_SRC
+   2. A complex expression
+      #+BEGIN_SRC c++
+        char *buf = malloc(sz * x * y);
+        buf[sz * x * y - 1]; // COMPLIANT
+      #+END_SRC
+   These both have the form =malloc(e)=, =buf[e+c]=, where =e= is an =Expr= and
+   =c= is a constant, possibly 0.  Our existing queries only report known or
+   boundable results, but here =e= is neither.
+
+   Write a new query, re-using or modifying the existing one to handle the simple
+   expression (case 1).
+
+   Note:
+   - We are looking at the allocation expression again, not its possible value.
+   - This only handles very specific cases.  Constructing counterexamples is easy.
+   - We will address this in the next section.
+
+*** Solution
+    #+INCLUDE: "example8.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example8/example8.expected" :lines "-6"’
+
+** Interim notes
+   A common issue with the =SimpleRangeAnalysis= library is handling of
+   cases where the bounds are undeterminable at compile-time on one or more
+   paths. For example, even though certain paths have clearly defined
+   bounds, the range analysis library will define the =upperBound= and
+   =lowerBound= of =val= as =INT_MIN= and =INT_MAX= respectively:
+
+   #+begin_src cpp
+     int val = rand() ? rand() : 30;
+   #+end_src
+
+   A similar case is present in the =test_const_branch= and =test_const_branch2=
+   test-cases.  In these cases, it is necessary to augment range analysis with
+   data-flow and restrict the bounds to the upper or lower bound of computable
+   constants that flow to a given expression.  Another approach is global value
+   numbering, used next.
+
+** Step 8a
+   Find problematic accesses by reverting to some /simple/ =var+const= checks using
+   =accessOffset= and =bufferOffset=.
+
+   Note:
+   - These will flag some false positives.
+   - The product expression =sz * x * y= is not easily checked for equality. 
+   These are addressed in the next step.
+
+*** Solution
+    #+INCLUDE: "example8a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/example8a/example8a.expected" :lines "-6"’
+
+** Step 9 -- Global Value Numbering
+   Range analyis won't bound =sz * x * y=, and simple equality checks don't work
+   at the structure level, so switch to global value numbering.
+
+   This is the case in the last test case, 
+   #+begin_example
+   void test_gvn_var(unsigned long x, unsigned long y, unsigned long sz)
+   {
+       char *buf = malloc(sz * x * y);
+       buf[sz * x * y - 1]; // COMPLIANT
+       buf[sz * x * y];     // NON_COMPLIANT
+       buf[sz * x * y + 1]; // NON_COMPLIANT
+   }
+   #+end_example
+
+   Global value numbering only knows that runtime values are equal; they
+   are not comparable (=<, >, <== etc.), and the /actual/ value is not
+   known.
+
+   Global value numbering finds expressions with the same known value,
+   independent of structure.
+
+   So, we look for and use /relative/ values between allocation and use. 
+
+   The relevant CodeQL constructs are
+   #+BEGIN_SRC java
+     import semmle.code.cpp.valuenumbering.GlobalValueNumbering
+     ...
+     globalValueNumber(e) = globalValueNumber(sizeExpr) and
+     e != sizeExpr
+     ...
+   #+END_SRC
+
+   We can use global value numbering to identify common values as first step, but
+   for expressions like
+   #+begin_example
+   buf[sz * x * y - 1]; // COMPLIANT
+   #+end_example
+   we have to "evaluate" the expressions -- or at least bound them.
+
+*** Solution
+    #+INCLUDE: "example9.ql" src java
+
+*** First 5 results
+    Results note:
+    - The allocation size of 200 is never used in an access, so the GVN match
+      eliminates it from the result list.
+
+     #+INCLUDE: "../session-tests/Example9/example9.expected" :lines "-6"’
+
+** Step 9a -- hashconsing
+   For the cases with variable =malloc= sizes, like =test_const_branch=, GVN
+   identifies same-value constant accesses, but we need a special case for
+   same-structure expression accesses.  Enter =hashCons=.
+
+   From the reference:
+   [[https://codeql.github.com/docs/codeql-language-guides/hash-consing-and-value-numbering/]] 
+
+   #+BEGIN_QUOTE
+    The hash consing library (defined in semmle.code.cpp.valuenumbering.HashCons)
+    provides a mechanism for identifying expressions that have the same syntactic
+    structure.
+   #+END_QUOTE
+
+   Additions to the imports, and use:
+   #+BEGIN_SRC java
+     import semmle.code.cpp.valuenumbering.HashCons
+         ...
+     hashCons(expr)
+   #+END_SRC
+
+   This step illustrates some subtle meanings of equality.  In particular, there
+   is plain ===, GVN, and =hashCons=:
+   #+BEGIN_SRC java
+       // 0 results:
+       // (accessBase = allocSizeExpr or accessBase = allocArg)
+
+       // Only 6 results:
+
+       // (
+       //   gvnAccessIdx = gvnAllocSizeExpr or
+       //   gvnAccessIdx = globalValueNumber(allocArg)
+       // )
+
+       // 9 results:
+       (
+         hashCons(accessBase) = hashCons(allocSizeExpr) or
+         hashCons(accessBase) = hashCons(allocArg)
+       )
+
+   #+END_SRC
+
+*** Solution
+    #+INCLUDE: "Example9a.ql" src java
+
+*** First 5 results
+    #+INCLUDE: "../session-tests/Example9a/example9a.expected" :lines "-6"’
