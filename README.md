@@ -9,7 +9,7 @@ This workshop is based on a significantly simplified and modified version of the
 - Install the latest version of the [CodeQL CLI](https://github.com/github/codeql-cli-binaries/releases).
 - Clone this repository:
   ```bash
-  git clone https://github.com/kraiouchkine/codeql-workshop-runtime-values-c
+  git clone https://github.com/nicolaswill/codeql-workshop-runtime-values-c
   ```
 - Install the CodeQL pack dependencies using the command `CodeQL: Install Pack Dependencies` and select `exercises`, `solutions`, `exercises-tests`, and `solutions-tests` from the list of packs.
 - If you have CodeQL on your PATH, build the database using `build-database.sh` and load the database with the VS Code CodeQL extension. 
